@@ -6,23 +6,20 @@
 #ifndef KSDK_H
 #define KSDK_H
 
-#include <ps4.h>
+#include <stdint.h>
+#include <stdarg.h>
 
+#include "sparse.h"
 #include "ksdk_util.h"
+#include "ksdk_bsd.h"
 
-#ifdef __GNUC__
-#define __cdecl    __attribute__((cdecl))
-#define __fastcall __attribute__((fastcall))
-#endif
-
-#define false  0
-#define true   1
+#define __Xfast_syscall 0x1C0
 
 #define KFUNC(slide, name, ret, args) \
     extern ret (*name) args
 #define KDATA(slide, name, type) \
     extern type* name
-#include "ksdk_505.inc"
+#include "ksdk.inc"
 #undef KFUNC
 #undef KDATA
 
