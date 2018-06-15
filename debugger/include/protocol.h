@@ -5,6 +5,9 @@
 #ifndef _PROTOCOL_H
 #define _PROTOCOL_H
 
+// the one odd part about this protocol is that when the client is debugging for a breakpoint/watchpoint
+// then the client sits in a constant data recieve mode until they interrupt this by detaching debugger
+
 #include <ps4.h>
 #include "crc32.h"
 
@@ -13,9 +16,9 @@
 #define CMD_PROC_LIST	    	0xBDAA0001
 #define CMD_PROC_READ	    	0xBDAA0002
 #define CMD_PROC_WRITE	    	0xBDAA0003
-#define RPC_PROC_INFO	    	0xBDAA0004
-#define RPC_PROC_INTALL	    	0xBDAA0005
-#define RPC_PROC_CALL	    	0xBDAA0006
+#define CMD_PROC_INFO	    	0xBDAA0004
+#define CMD_PROC_INTALL	    	0xBDAA0005
+#define CMD_PROC_CALL	    	0xBDAA0006
 #define CMD_PROC_PROTECT    	0xBDAA0007
 
 #define CMD_DEBUG_ATTACH        0xBDBB0001
@@ -52,12 +55,12 @@
 #define CMD_TOO_MUCH_DATA		0xF0000002
 #define CMD_DATA_NULL			0xF0000003
 
-#define RPC_FATAL_STATUS(s) ((s >> 28) == 15)
+#define CMD_FATAL_STATUS(s) ((s >> 28) == 15)
 
 struct cmd_packet {
 	uint32_t magic;
-    uint32_t cmd;
-    uint32_t crc;
+	uint32_t cmd;
+	uint32_t crc;
 	uint32_t datalen;
 	// (field not actually part of packet, comes after)
 	uint8_t *data;

@@ -27,7 +27,7 @@ int net_send_data(int fd, void *data, int length) {
 	return offset;
 }
 
-int net_recv_data(int fd, void *data, int length) {
+int net_recv_data(int fd, void *data, int length, int force) {
 	uint32_t left = length;
 	uint32_t offset = 0;
 	uint32_t recv = 0;
@@ -39,8 +39,14 @@ int net_recv_data(int fd, void *data, int length) {
 			recv = sceNetRecv(fd, data + offset, left, 0);
 		}
 
-		if (!recv && !errno) {
-			return 0;
+		if (!recv) {
+			if (!errno) {
+				return 0;
+			}
+
+			if (!force) {
+				return offset;
+			}
 		}
 
 		offset += recv;

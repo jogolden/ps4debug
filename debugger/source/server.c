@@ -65,7 +65,7 @@ void *client_thread(void *arg) {
     fd = (uint64_t)(void *)arg;
 
     while(dbgsrv.run_server) {
-        r = net_recv_data(fd, &packet, CMD_PACKET_SIZE);
+        r = net_recv_data(fd, &packet, CMD_PACKET_SIZE, 0);
         if (!r) {
 			// check if disconnected
 			if (errno == 0) {
@@ -94,7 +94,7 @@ void *client_thread(void *arg) {
 			}
 
 			// recv data
-			r = net_recv_data(fd, data, length);
+			r = net_recv_data(fd, data, length, 1);
 			if (!r) {
 				goto error;
 			}
