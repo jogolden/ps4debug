@@ -10,7 +10,7 @@ CFILES	:= $(wildcard $(SDIR)/*.c)
 SFILES	:= $(wildcard $(SDIR)/*.s)
 OBJS	:= $(patsubst $(SDIR)/%.c, build/%.o, $(CFILES)) $(patsubst $(SDIR)/%.s, build/%.o, $(SFILES))
 
-TARGET = $(shell basename $(CURDIR)).a
+TARGET = libKSDK.a
 
 $(TARGET): $(ODIR) $(OBJS)
 	$(AR) rcs $@ $(OBJS)
