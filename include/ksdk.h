@@ -23,6 +23,7 @@
 #undef KFUNC
 #undef KDATA
 
+uint64_t get_kbase();
 void init_ksdk();
 
 #endif /* KSDK_H */
