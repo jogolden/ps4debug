@@ -46,10 +46,9 @@ struct ptrace_io_desc {
 	int	piod_op;        /* I/O operation */
 	void *piod_offs;	/* child offset */
 	void *piod_addr;	/* parent offset */
-	size_t piod_len;	/* request length */
+	uint64_t piod_len;	/* request length */
 };
 
 int ptrace(int req, int pid, void *addr, int data);
-SYSCALL(ptrace, 26);
 
 #endif

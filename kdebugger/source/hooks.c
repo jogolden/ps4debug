@@ -6,25 +6,19 @@
 
 struct sysent *sysents;
 
-int sys_proc_read(struct thread *td, struct sys_proc_read_args *uap) {
+int sys_proc_list(struct thread *td, struct sys_proc_list_args *uap) {
     struct proc *p;
-    uint64_t n;
 
-    p = proc_find_by_pid(uap->pid);
-    if(p) {
-        return proc_write_mem(p, (void *)uap->address, uap->length, uap->data, &n);
-    }
     
     return 1;
 }
 
-int sys_proc_write(struct thread *td, struct sys_proc_write_args *uap) {
+int sys_proc_rw(struct thread *td, struct sys_proc_rw_args *uap) {
     struct proc *p;
-    uint64_t n;
 
     p = proc_find_by_pid(uap->pid);
     if(p) {
-        return proc_read_mem(p, (void *)uap->address, uap->length, uap->data, &n);
+        return proc_rw_mem(p, (void *)uap->address, uap->length, uap->data, 0, uap->write);
     }
     
     return 1;
@@ -62,15 +56,25 @@ int sys_kern_base(struct thread *td, struct sys_kern_base_args *uap) {
     return 0;
 }
 
-int sys_kern_read(struct thread *td, struct sys_kern_read_args *uap) {
-    memcpy(uap->data, (void *)uap->address, uap->length);
+int sys_kern_rw(struct thread *td, struct sys_kern_rw_args *uap) {
+    if(uap->write) {
+        cpu_disable_wp();
+        memcpy((void *)uap->address, uap->data, uap->length);
+        cpu_enable_wp();
+    } else {
+        memcpy(uap->data, (void *)uap->address, uap->length);
+    }
+
     return 0;
 }
 
-int sys_kern_write(struct thread *td, struct sys_kern_write_args *uap) {
-    cpu_disable_wp();
-    memcpy((void *)uap->address, uap->data, uap->length);
-    cpu_enable_wp();
+int sys_console_cmd(struct thread *td, struct sys_console_cmd_args *uap) {
+    switch(uap->cmd) {
+        case SYS_CONSOLE_CMD_REBOOT:
+        kern_reboot(0);
+        break;
+    }
+
     return 0;
 }
 
@@ -80,17 +84,17 @@ int install_hooks() {
 
     cpu_disable_wp();
 
-    struct sysent *_proc_read = &sysents[107];
-    memset(_proc_read, 0, sizeof(struct sysent));
-    _proc_read->sy_narg = 5;
-    _proc_read->sy_call = sys_proc_read;
-    _proc_read->sy_thrcnt = 1;
+    struct sysent *_proc_list = &sysents[107];
+    memset(_proc_list, 0, sizeof(struct sysent));
+    _proc_list->sy_narg = 5;
+    _proc_list->sy_call = sys_proc_list;
+    _proc_list->sy_thrcnt = 1;
 
-    struct sysent *_proc_write = &sysents[108];
-    memset(_proc_write, 0, sizeof(struct sysent));
-    _proc_write->sy_narg = 5;
-    _proc_write->sy_call = sys_proc_write;
-    _proc_write->sy_thrcnt = 1;
+    struct sysent *_proc_rw = &sysents[108];
+    memset(_proc_rw, 0, sizeof(struct sysent));
+    _proc_rw->sy_narg = 5;
+    _proc_rw->sy_call = sys_proc_rw;
+    _proc_rw->sy_thrcnt = 1;
 
     struct sysent *_proc_cmd = &sysents[109];
     memset(_proc_cmd, 0, sizeof(struct sysent));
@@ -104,17 +108,17 @@ int install_hooks() {
     _kern_base->sy_call = sys_kern_base;
     _kern_base->sy_thrcnt = 1;
 
-    struct sysent *_kern_read = &sysents[111];
-    memset(_kern_read, 0, sizeof(struct sysent));
-    _kern_read->sy_narg = 5;
-    _kern_read->sy_call = sys_kern_read;
-    _kern_read->sy_thrcnt = 1;
+    struct sysent *_kern_rw = &sysents[111];
+    memset(_kern_rw, 0, sizeof(struct sysent));
+    _kern_rw->sy_narg = 5;
+    _kern_rw->sy_call = sys_kern_rw;
+    _kern_rw->sy_thrcnt = 1;
     
-    struct sysent *_kern_write = &sysents[112];
-    memset(_kern_write, 0, sizeof(struct sysent));
-    _kern_write->sy_narg = 5;
-    _kern_write->sy_call = sys_kern_write;
-    _kern_write->sy_thrcnt = 1;
+    struct sysent *_console_cmd = &sysents[112];
+    memset(_console_cmd, 0, sizeof(struct sysent));
+    _console_cmd->sy_narg = 5;
+    _console_cmd->sy_call = sys_console_cmd;
+    _console_cmd->sy_thrcnt = 1;
 
     cpu_enable_wp();
 

@@ -3,6 +3,7 @@
 //
 
 #include <ps4.h>
+#include "ptrace.h"
 #include "server.h"
 
 int _main(void) {

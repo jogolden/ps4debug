@@ -24,22 +24,21 @@ TYPE_END();
 extern struct sysent *sysents;
 
 // custom syscall 107
-struct sys_proc_read_args {
-    uint64_t pid;
-    uint64_t address;
+struct sys_proc_list_args {
+    uint64_t max;
     void *data;
-    uint64_t length;
 };
-int sys_proc_read(struct thread *td, struct sys_proc_read_args *uap);
+int sys_proc_list(struct thread *td, struct sys_proc_list_args *uap);
 
 // custom syscall 108
-struct sys_proc_write_args {
+struct sys_proc_rw_args {
     uint64_t pid;
     uint64_t address;
     void *data;
     uint64_t length;
+    uint64_t write;
 };
-int sys_proc_write(struct thread *td, struct sys_proc_write_args *uap);
+int sys_proc_rw(struct thread *td, struct sys_proc_rw_args *uap);
 
 // custom syscall 109
 #define SYS_PROC_CMD_ALLOC      1
@@ -61,20 +60,20 @@ struct sys_kern_base_args {
 int sys_kern_base(struct thread *td, struct sys_kern_base_args *uap);
 
 // custom syscall 111
-struct sys_kern_read_args {
+struct sys_kern_rw_args {
     uint64_t address;
     void *data;
     uint64_t length;
+    uint64_t write;
 };
-int sys_kern_read(struct thread *td, struct sys_kern_read_args *uap);
+int sys_kern_rw(struct thread *td, struct sys_kern_rw_args *uap);
 
 // custom syscall 112
-struct sys_kern_write_args {
-    uint64_t address;
-    void *data;
-    uint64_t length;
+#define SYS_CONSOLE_CMD_REBOOT       1
+struct sys_console_cmd_args {
+    uint64_t cmd;
 };
-int sys_kern_write(struct thread *td, struct sys_kern_write_args *uap);
+int sys_console_cmd(struct thread *td, struct sys_console_cmd_args *uap);
 
 int install_hooks();
 
