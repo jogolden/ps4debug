@@ -53,7 +53,7 @@ KFUNC(0x30D150, proc_rwmem, int, (struct proc *p, struct uio *uio));
 /* data */
 KDATA(0x19ECEB0, disable_console_output, uint8_t);
 KDATA(0x14B4110, M_TEMP, void);
-KDATA(0x1AC60E0, kernel_map, void);
+KDATA(0x1AC60E0, kernel_map, void *);
 KDATA(0x10986a0, prison0, void *);
 KDATA(0x22C1A70, rootvnode, void *);
 KDATA(0x2382FF8, allproc, struct proc *);
