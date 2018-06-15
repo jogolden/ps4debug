@@ -51,7 +51,7 @@ KFUNC(0x19F060, vm_map_unlock, void, (struct vm_map * map));
 KFUNC(0x30D150, proc_rwmem, int, (struct proc *p, struct uio *uio));
 
 /* data */
-KDATA(0x19ECEB0, disable_console_output, uint8_t *);
+KDATA(0x19ECEB0, disable_console_output, uint8_t);
 KDATA(0x14B4110, M_TEMP, void);
 KDATA(0x1AC60E0, kernel_map, void);
 KDATA(0x10986a0, prison0, void *);
