@@ -2,7 +2,9 @@
 // 6/12/2018
 //
 
-#include "ksdk.h"
+#include <ksdk.h>
+#include "hooks.h"
+#include "installer.h"
 
 void jailbreak() {
 	struct ucred* cred;
@@ -21,7 +23,7 @@ void jailbreak() {
 	fd->fd_rdir = fd->fd_jdir = *rootvnode;
 }
 
-void debug_patches() {
+void kpatches() {
     cpu_disable_wp();
     
     uint64_t kernbase = get_kbase();
@@ -44,10 +46,18 @@ void debug_patches() {
 
 void _main(void) {
     init_ksdk();
-    
-    jailbreak();
-    debug_patches();
 
+    jailbreak();
+    kpatches();
+
+    cpu_disable_wp();
     *disable_console_output = 0;
-    printf("hellworld", 1);
+    cpu_enable_wp();
+
+	printf("[ps4debug] kdebugger loaded\n");
+
+    install_hooks();
+    install_debugger();
+
+    printf("[ps4debug] hooks and debugger installed\n");
 }

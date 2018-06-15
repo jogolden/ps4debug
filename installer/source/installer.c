@@ -11,6 +11,10 @@ int runinstaller() {
     init_ksdk();
     uint64_t kernbase = get_kbase();
 
+    cpu_disable_wp();
+    *disable_console_output = 0;
+    cpu_enable_wp();
+    
 	uint64_t msize = 0;
 	if (elf_mapped_size(bkdbg, &msize)) {
 		return 1;
@@ -23,7 +27,7 @@ int runinstaller() {
 	*(uint8_t *)(kernbase + __kmem_alloc_p2) = VM_PROT_ALL;
 	cpu_enable_wp();
 
-	void *payloadbase = (void *)kmem_alloc(kernel_map, s);
+	void *payloadbase = (void *)kmem_alloc(*kernel_map, s);
 
 	cpu_disable_wp();
 	*(uint8_t *)(kernbase + __kmem_alloc_p1) = VM_PROT_DEFAULT;
