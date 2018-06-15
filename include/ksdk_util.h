@@ -35,9 +35,9 @@
 
 #define NULL 0
 
-#define offsetof(st, m) ((size_t)((char *)&((st *)(0))->m - (char *)0))
+#define offsetof(st, m) ((uint64_t)((char *)&((st *)(0))->m - (char *)0))
 
-#define COUNT_OF(x) ((sizeof(x)/sizeof(0[x])) / ((size_t)(!(sizeof(x) % sizeof(0[x])))))
+#define COUNT_OF(x) ((sizeof(x)/sizeof(0[x])) / ((uint64_t)(!(sizeof(x) % sizeof(0[x])))))
 
 static inline __attribute__((always_inline))
 uint64_t read_msr(uint32_t reg) {
