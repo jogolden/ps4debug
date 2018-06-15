@@ -2,10 +2,10 @@
 // 6/12/2018
 //
 
-#ifndef _DEBUGGER_H
-#define _DEBUGGER_H
+#ifndef _PTRACE_H
+#define _PTRACE_H
 
-#include "debugger.h"
+#include <ps4.h>
 
 // taken from ptrace.h
 
