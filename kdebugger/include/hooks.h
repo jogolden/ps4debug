@@ -24,9 +24,13 @@ TYPE_END();
 extern struct sysent *sysents;
 
 // custom syscall 107
+struct proc_list_entry {
+    char p_comm[32];
+    int pid;
+};
 struct sys_proc_list_args {
-    uint64_t max;
-    void *data;
+    struct proc_list_entry *procs;
+    uint64_t *num;
 };
 int sys_proc_list(struct thread *td, struct sys_proc_list_args *uap);
 
@@ -41,11 +45,16 @@ struct sys_proc_rw_args {
 int sys_proc_rw(struct thread *td, struct sys_proc_rw_args *uap);
 
 // custom syscall 109
-#define SYS_PROC_CMD_ALLOC      1
-#define SYS_PROC_CMD_FREE       2
-#define SYS_PROC_CMD_PROTECT    3
-#define SYS_PROC_VM_MAP         4
-#define SYS_PROC_CMD_CALL       5
+#define SYS_PROC_ALLOC      1
+#define SYS_PROC_FREE       2
+#define SYS_PROC_PROTECT    3
+#define SYS_PROC_VM_MAP     4
+#define SYS_PROC_INSTALL    5
+#define SYS_PROC_CALL       6
+struct sys_proc_vm_map_args {
+    struct proc_vm_map_entry *maps;
+    uint64_t num;
+};
 struct sys_proc_cmd_args {
     uint64_t pid;
     uint64_t cmd;
@@ -74,6 +83,12 @@ struct sys_console_cmd_args {
     uint64_t cmd;
 };
 int sys_console_cmd(struct thread *td, struct sys_console_cmd_args *uap);
+
+// custom syscall 129
+struct sys_console_print_args {
+    char *str;
+};
+int sys_console_print(struct thread *td, struct sys_console_print_args *uap);
 
 int install_hooks();
 

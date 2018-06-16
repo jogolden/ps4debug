@@ -16,13 +16,11 @@
 
 #define SERVER_IN               IN_ADDR_ANY
 #define SERVER_PORT             733
-#define SERVER_MAX_CLIENTS      10
 
 struct debug_server {
     int run_server;
     struct sockaddr_in server;
     int servsock;
-    int clients[SERVER_MAX_CLIENTS];
 };
 
 extern struct debug_server dbgsrv;

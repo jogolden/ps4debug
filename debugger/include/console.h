@@ -9,6 +9,6 @@
 #include "protocol.h"
 #include "net.h"
 
-void console_handle(int fd, struct cmd_packet *packet);
+int console_handle(int fd, struct cmd_packet *packet);
 
 #endif

@@ -6,51 +6,21 @@
 
 struct debug_server dbgsrv;
 
-int add_client(int client) {
-    int idx = -1;
-    for(int i = 0; i < SERVER_MAX_CLIENTS; i++) {
-        if(dbgsrv.clients[i] == -1) {
-            idx = i;
-            break;
-        }
-    }
-
-    if(idx != -1) {
-        dbgsrv.clients[idx] = client;
-        return 0;
-    }
-
-    return 1;
-}
-
-void remove_client(int client) {
-    for(int i = 0; i < SERVER_MAX_CLIENTS; i++) {
-        if(dbgsrv.clients[i] == client) {
-            dbgsrv.clients[i] = -1;
-            break;
-        }
-    }
-}
-
-void reset_clients() {
-    for(int i = 0; i < SERVER_MAX_CLIENTS; i++) {
-        dbgsrv.clients[i] = -1;
-    }
-}
-
 int cmd_handler(int fd, struct cmd_packet *packet) {
 	if (!VALID_CMD(packet->cmd)) {
 		return 1;
 	}
 
+    uprintf("cmd_handler %X", packet->cmd);
+
     if(VALID_PROC_CMD(packet->cmd)) {
-        proc_handle(fd, packet);
+        return proc_handle(fd, packet);
     } else if(VALID_DEBUG_CMD(packet->cmd)) {
-        debug_handle(fd, packet);
+        return debug_handle(fd, packet);
     } else if(VALID_KERN_CMD(packet->cmd)) {
-        kern_handle(fd, packet);
+        return kern_handle(fd, packet);
     } else if(VALID_CONSOLE_CMD(packet->cmd)) {
-        console_handle(fd, packet);
+        return console_handle(fd, packet);
     }
 
     return 0;
@@ -65,16 +35,18 @@ void *client_thread(void *arg) {
     fd = (uint64_t)(void *)arg;
 
     while(dbgsrv.run_server) {
+        scePthreadYield();
+
         r = net_recv_data(fd, &packet, CMD_PACKET_SIZE, 0);
+
         if (!r) {
 			// check if disconnected
-			if (errno == 0) {
+			if (errno == ECONNRESET) {
 				goto error;
 			}
-
 			continue;
 		}
-        
+
         // invalid packet
 		if (packet.magic != PACKET_MAGIC) {
 			continue;
@@ -120,12 +92,12 @@ void *client_thread(void *arg) {
 			data = 0;
 		}
 
-		// check cmd handler error (or end cmd)
+		// check cmd handler error
 		if (r) {
 			goto error;
 		}
 
-        sceKernelUsleep(300000);
+        sceKernelUsleep(40000);
     }
 
 error:
@@ -134,30 +106,11 @@ error:
     return 0;
 }
 
-void *server_thread(void *arg) {
-    while(dbgsrv.run_server) {
-        int clsock = sceNetAccept(dbgsrv.servsock, NULL, NULL);
-        if(add_client(clsock)) {
-            net_send_status(clsock, NET_STATUS_ERROR);
-            sceNetSocketClose(clsock);
-        } else {
-            int flag = 1;
-            sceNetSetsockopt(clsock, SOL_SOCKET, SO_NBIO, (char *)&flag, sizeof(int));
-
-            ScePthread thread;
-            scePthreadCreate(&thread, NULL, client_thread, (void *)(uint64_t)clsock, "dbgclient");
-        }
-
-        sceKernelUsleep(600000);
-    }
-
-    return 0;
-}
-
 void start_server() {
+    int fd, flag;
+
     // reset server
     memset(&dbgsrv, 0, sizeof(struct debug_server));
-    reset_clients();
 
     // server structure
     dbgsrv.server.sin_len = sizeof(dbgsrv.server);
@@ -169,31 +122,34 @@ void start_server() {
     // start up server
     dbgsrv.servsock = sceNetSocket("dbgsock", AF_INET, SOCK_STREAM, 0);
 
-    int flag = 1;
-	sceNetSetsockopt(dbgsrv.servsock, SOL_SOCKET, SO_NBIO, (char *)&flag, sizeof(int));
-
     sceNetBind(dbgsrv.servsock, (struct sockaddr *)&dbgsrv.server, sizeof(dbgsrv.server));
 
     sceNetListen(dbgsrv.servsock, 16);
 
+    flag = 1;
+	sceNetSetsockopt(dbgsrv.servsock, SOL_SOCKET, SO_NBIO, (char *)&flag, sizeof(int));
+
     dbgsrv.run_server = 1;
 
-    ScePthread servthr;
-    scePthreadCreate(&servthr, NULL, server_thread, NULL, "dbgserver");
+    while(dbgsrv.run_server) {
+        scePthreadYield();
+
+        fd = sceNetAccept(dbgsrv.servsock, NULL, NULL);
+        if(fd > -1 && !errno) {
+            flag = 1;
+            sceNetSetsockopt(fd, SOL_SOCKET, SO_NBIO, (char *)&flag, sizeof(int));
+            
+            ScePthread thread;
+            scePthreadCreate(&thread, NULL, client_thread, (void *)(uint64_t)fd, "dbgclient");
+        }
+
+        sceKernelSleep(1);
+    }
 }
 
 void stop_server() {
-    // close clients
-    for(int i = 0; i < SERVER_MAX_CLIENTS; i++) {
-        if(dbgsrv.clients[i] != -1) {
-            sceNetSocketClose(dbgsrv.clients[i]);
-        }
-    }
+    dbgsrv.run_server = 0;
 
     // close socket
     sceNetSocketClose(dbgsrv.servsock);
-
-    // reset server
-    memset(&dbgsrv, 0, sizeof(struct debug_server));
-    reset_clients();
 }

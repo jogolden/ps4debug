@@ -9,6 +9,14 @@
 #include "protocol.h"
 #include "net.h"
 
-void proc_handle(int fd, struct cmd_packet *packet);
+int proc_list_handle(int fd, struct cmd_packet *packet);
+int proc_read_handle(int fd, struct cmd_packet *packet);
+int proc_write_handle(int fd, struct cmd_packet *packet);
+int proc_info_handle(int fd, struct cmd_packet *packet);
+int proc_install_handle(int fd, struct cmd_packet *packet);
+int proc_call_handle(int fd, struct cmd_packet *packet);
+int proc_protect_handle(int fd, struct cmd_packet *packet);
+
+int proc_handle(int fd, struct cmd_packet *packet);
 
 #endif

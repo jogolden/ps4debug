@@ -5,11 +5,10 @@
 #ifndef _PROTOCOL_H
 #define _PROTOCOL_H
 
-// the one odd part about this protocol is that when the client is debugging for a breakpoint/watchpoint
-// then the client sits in a constant data recieve mode until they interrupt this by detaching debugger
-
 #include <ps4.h>
+#include "errno.h"
 #include "crc32.h"
+#include "kdbg.h"
 
 #define PACKET_MAGIC    0xFFAABBCC
 
@@ -65,7 +64,63 @@ struct cmd_packet {
 	// (field not actually part of packet, comes after)
 	uint8_t *data;
 } __attribute__((packed));
-
 #define CMD_PACKET_SIZE 16
+
+// proc
+struct cmd_proc_read_packet {
+	uint32_t pid;
+	uint64_t address;
+	uint32_t length;
+} __attribute__((packed));
+#define CMD_PROC_READ_PACKET_SIZE 16
+
+struct cmd_proc_write_packet {
+	uint32_t pid;
+	uint64_t address;
+	uint32_t length;
+} __attribute__((packed));
+#define CMD_PROC_WRITE_PACKET_SIZE 16
+
+struct cmd_proc_info_packet {
+	uint32_t pid;
+} __attribute__((packed));
+#define CMD_PROC_INFO_PACKET_SIZE 4
+
+struct cmd_proc_install_packet {
+	uint32_t pid;
+} __attribute__((packed));
+#define CMD_PROC_INSTALL_PACKET_SIZE 4
+
+struct cmd_proc_call_packet {
+	uint32_t pid;
+	uint64_t rpcstub;
+	uint64_t rpc_rip;
+	uint64_t rpc_rdi;
+	uint64_t rpc_rsi;
+	uint64_t rpc_rdx;
+	uint64_t rpc_rcx;
+	uint64_t rpc_r8;
+	uint64_t rpc_r9;
+} __attribute__((packed));
+struct cmd_proc_call_response {
+	uint32_t pid;
+	uint64_t rpc_rax;
+} __attribute__((packed));
+#define CMD_PROC_CALL_PACKET_SIZE 68
+#define CMD_PROC_CALL_RESPONSE_SIZE 12
+
+struct cmd_proc_protect_packet {
+	uint32_t pid;
+	uint64_t address;
+	uint32_t length;
+	uint32_t newprot;
+} __attribute__((packed));
+#define CMD_PROC_PROTECT_PACKET_SIZE 20
+
+// debug
+
+// kern
+
+// console
 
 #endif

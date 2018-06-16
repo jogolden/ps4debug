@@ -40,7 +40,7 @@ int net_recv_data(int fd, void *data, int length, int force) {
 		}
 
 		if (!recv) {
-			if (!errno) {
+			if(!errno) {
 				return 0;
 			}
 

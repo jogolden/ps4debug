@@ -4,6 +4,8 @@
 
 #include "console.h"
 
-void console_handle(int fd, struct cmd_packet *packet) {
+int console_handle(int fd, struct cmd_packet *packet) {
     net_send_data(fd, "hello", 5);
+
+    return 0;
 }
