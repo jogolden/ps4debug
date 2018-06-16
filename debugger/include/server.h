@@ -18,18 +18,13 @@
 #define SERVER_PORT             733
 
 struct debug_server {
-    int run_server;
     struct sockaddr_in server;
     int servsock;
 };
 
 extern struct debug_server dbgsrv;
 
-int add_client(int client);
-void remove_client(int client);
-void reset_clients();
-
+// this will block
 void start_server();
-void stop_server();
 
 #endif

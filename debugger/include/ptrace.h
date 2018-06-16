@@ -42,6 +42,9 @@
 #define	PT_VM_TIMESTAMP	40	/* Get VM version (timestamp) */
 #define	PT_VM_ENTRY     41 	/* Get VM map (entry) */
 
+#define WNOHANG		1	/* dont hang in wait */
+#define WUNTRACED	2	/* tell about stopped, untraced children */
+
 struct ptrace_io_desc {
 	int	piod_op;        /* I/O operation */
 	void *piod_offs;	/* child offset */
@@ -50,5 +53,6 @@ struct ptrace_io_desc {
 };
 
 int ptrace(int req, int pid, void *addr, int data);
+int wait4(int wpid, int *status, int options, void *rusage);
 
 #endif

@@ -34,7 +34,7 @@ void *client_thread(void *arg) {
 
     fd = (uint64_t)(void *)arg;
 
-    while(dbgsrv.run_server) {
+    while(1) {
         scePthreadYield();
 
         r = net_recv_data(fd, &packet, CMD_PACKET_SIZE, 0);
@@ -74,7 +74,7 @@ void *client_thread(void *arg) {
 			// set data
 			packet.data = data;
 		} else {
-			packet.data = 0;
+			packet.data = NULL;
 		}
 
         // check crc if there is one
@@ -89,7 +89,7 @@ void *client_thread(void *arg) {
 
     	if (data) {
 			free(data);
-			data = 0;
+			data = NULL;
 		}
 
 		// check cmd handler error
@@ -129,9 +129,7 @@ void start_server() {
     flag = 1;
 	sceNetSetsockopt(dbgsrv.servsock, SOL_SOCKET, SO_NBIO, (char *)&flag, sizeof(int));
 
-    dbgsrv.run_server = 1;
-
-    while(dbgsrv.run_server) {
+    while(1) {
         scePthreadYield();
 
         fd = sceNetAccept(dbgsrv.servsock, NULL, NULL);
@@ -145,11 +143,4 @@ void start_server() {
 
         sceKernelSleep(1);
     }
-}
-
-void stop_server() {
-    dbgsrv.run_server = 0;
-
-    // close socket
-    sceNetSocketClose(dbgsrv.servsock);
 }

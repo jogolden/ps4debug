@@ -10,7 +10,7 @@
 #include "crc32.h"
 #include "kdbg.h"
 
-#define PACKET_MAGIC    0xFFAABBCC
+#define PACKET_MAGIC			0xFFAABBCC
 
 #define CMD_PROC_LIST	    	0xBDAA0001
 #define CMD_PROC_READ	    	0xBDAA0002
@@ -22,19 +22,17 @@
 
 #define CMD_DEBUG_ATTACH        0xBDBB0001
 #define CMD_DEBUG_DETACH        0xBDBB0002
-#define CMD_DEBUG_STOP          0xBDBB0003
-#define CMD_DEBUG_RESUME        0xBDBB0004
-#define CMD_DEBUG_BREAKPT       0xBDBB0005
-#define CMD_DEBUG_WATCHPT       0xBDBB0006
-#define CMD_DEBUG_THREADS       0xBDBB0007
-#define CMD_DEBUG_STOPTHR       0xBDBB0008
-#define CMD_DEBUG_RESUMETHR     0xBDBB0009
-#define CMD_DEBUG_GETREGS       0xBDBB000A
-#define CMD_DEBUG_SETREGS       0xBDBB000B
-#define CMD_DEBUG_GETFREGS      0xBDBB000C
-#define CMD_DEBUG_SETFREGS      0xBDBB000D
-#define CMD_DEBUG_GETDBGREGS    0xBDBB000E
-#define CMD_DEBUG_SETDBGREGS    0xBDBB000F
+#define CMD_DEBUG_BREAKPT       0xBDBB0003
+#define CMD_DEBUG_WATCHPT       0xBDBB0004
+#define CMD_DEBUG_THREADS       0xBDBB0005
+#define CMD_DEBUG_STOPTHR       0xBDBB0006
+#define CMD_DEBUG_RESUMETHR     0xBDBB0007
+#define CMD_DEBUG_GETREGS       0xBDBB0008
+#define CMD_DEBUG_SETREGS       0xBDBB0009
+#define CMD_DEBUG_GETFREGS      0xBDBB000A
+#define CMD_DEBUG_SETFREGS      0xBDBB000B
+#define CMD_DEBUG_GETDBGREGS    0xBDBB000C
+#define CMD_DEBUG_SETDBGREGS    0xBDBB000D
 
 #define CMD_KERN_BASE	    	0xBDCC0001
 #define CMD_KERN_READ           0xBDCC0002
@@ -118,6 +116,10 @@ struct cmd_proc_protect_packet {
 #define CMD_PROC_PROTECT_PACKET_SIZE 20
 
 // debug
+struct cmd_debug_attach_packet {
+	uint32_t pid;
+} __attribute__((packed));
+#define CMD_DEBUG_ATTACH_PACKET_SIZE 4
 
 // kern
 

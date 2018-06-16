@@ -5,8 +5,6 @@
 #include "kern.h"
 
 int kern_base_handle(int fd, struct cmd_packet *packet) {
-
-    
     return 0;
 }
 
