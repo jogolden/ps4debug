@@ -15,7 +15,7 @@ struct proc_vm_map_entry {
 	uint64_t end;
 	uint64_t offset;
 	uint16_t prot;
-};
+} __attribute__((packed));
 
 struct proc *proc_find_by_name(const char *name);
 struct proc *proc_find_by_pid(int pid);

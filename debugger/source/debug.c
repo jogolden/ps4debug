@@ -4,8 +4,8 @@
 
 #include "debug.h"
 
-int dbg_pid = 0;
-int dbg_fd = 0;
+int dbg_pid;
+int dbg_fd;
 struct debug_breakpoint breakpoints[MAX_BREAKPOINTS];
 struct debug_watchpoint watchpoints[MAX_WATCHPOINTS];
 
@@ -95,6 +95,8 @@ void *debug_monitor_thread(void *arg) {
 }
 
 void start_debug() {
+    dbg_pid = dbg_fd = -1;
+    
     ScePthread thread;
     scePthreadCreate(&thread, NULL, debug_monitor_thread, NULL, "dbgmonitor");
 }

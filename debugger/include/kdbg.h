@@ -31,11 +31,11 @@ struct proc_vm_map_entry {
 	uint64_t end;
 	uint64_t offset;
 	uint16_t prot;
-};
+} __attribute__((packed));
 struct sys_proc_vm_map_args {
     struct proc_vm_map_entry *maps;
     uint64_t num;
-};
+} __attribute__((packed));
 void sys_proc_cmd(uint64_t pid, uint64_t cmd, void *data);
 
 // custom syscall 110
@@ -46,7 +46,7 @@ void sys_kern_rw(uint64_t address, void *data, uint64_t length, uint64_t write);
 
 // custom syscall 112
 #define SYS_CONSOLE_CMD_REBOOT       1
-void sys_console_cmd(uint64_t cmd);
+void sys_console_cmd(uint64_t cmd, void *data);
 
 // custom syscall 129
 void sys_console_print(char *str);

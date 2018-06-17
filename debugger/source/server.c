@@ -11,7 +11,7 @@ int cmd_handler(int fd, struct cmd_packet *packet) {
 		return 1;
 	}
 
-    uprintf("cmd_handler %X", packet->cmd);
+    uprintf("[ps4debug] cmd_handler %X", packet->cmd);
 
     if(VALID_PROC_CMD(packet->cmd)) {
         return proc_handle(fd, packet);
@@ -46,6 +46,8 @@ void *client_thread(void *arg) {
 			}
 			continue;
 		}
+
+        uprintf("[ps4debug] client_thread packet %i", fd);
 
         // invalid packet
 		if (packet.magic != PACKET_MAGIC) {
@@ -101,6 +103,7 @@ void *client_thread(void *arg) {
     }
 
 error:
+    uprintf("[ps4debug] client_thread error %i", fd);
     sceNetSocketClose(fd);
 
     return 0;
@@ -133,7 +136,9 @@ void start_server() {
         scePthreadYield();
 
         fd = sceNetAccept(dbgsrv.servsock, NULL, NULL);
-        if(fd > -1 && !errno) {
+        if(fd > -1) {
+            uprintf("[ps4debug] accepted a client");
+
             flag = 1;
             sceNetSetsockopt(fd, SOL_SOCKET, SO_NBIO, (char *)&flag, sizeof(int));
             

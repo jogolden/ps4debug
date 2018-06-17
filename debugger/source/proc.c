@@ -16,6 +16,7 @@ int proc_list_handle(int fd, struct cmd_packet *packet) {
         sys_proc_list(data, &num);
 
         net_send_status(fd, CMD_SUCCESS);
+        net_send_data(fd, &num, sizeof(uint32_t));
         net_send_data(fd, data, length);
 
         return 0;
@@ -72,6 +73,7 @@ int proc_info_handle(int fd, struct cmd_packet *packet) {
     struct cmd_proc_info_packet *ip;
     struct sys_proc_vm_map_args args;
     uint32_t size;
+    uint32_t num;
 
     ip = (struct cmd_proc_info_packet *)packet->data;
 
@@ -86,6 +88,8 @@ int proc_info_handle(int fd, struct cmd_packet *packet) {
         sys_proc_cmd(ip->pid, SYS_PROC_VM_MAP, &args);
 
         net_send_status(fd, CMD_SUCCESS);
+        num = (uint32_t)args.num;
+        net_send_data(fd, &num, sizeof(uint32_t));
         net_send_data(fd, args.maps, size);
 
         return 0;

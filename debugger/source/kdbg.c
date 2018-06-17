@@ -35,9 +35,8 @@ void sys_kern_rw(uint64_t address, void *data, uint64_t length, uint64_t write) 
 }
 
 // custom syscall 112
-#define SYS_CONSOLE_CMD_REBOOT       1
-void sys_console_cmd(uint64_t cmd) {
-    syscall(112, cmd);
+void sys_console_cmd(uint64_t cmd, void *data) {
+    syscall(112, cmd, data);
 }
 
 // custom syscall 129

@@ -143,8 +143,8 @@ int sys_kern_rw(struct thread *td, struct sys_kern_rw_args *uap) {
 int sys_console_cmd(struct thread *td, struct sys_console_cmd_args *uap) {
     switch(uap->cmd) {
         case SYS_CONSOLE_CMD_REBOOT:
-        kern_reboot(0);
-        break;
+            kern_reboot(0);
+            break;
     }
 
     return 0;

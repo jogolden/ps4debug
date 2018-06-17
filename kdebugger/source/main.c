@@ -41,6 +41,15 @@ void kpatches() {
 	// patch ASLR, thanks 2much4u
 	*(uint16_t *)(kernbase + 0x194875) = 0x9090;
 
+	// patch sceSblACMgrIsSystemUcred return 1
+	memcpy((void *)(kernbase + 0x10F90), "\x48\xC7\xC0\x01\x00\x00\x00\xC3", 8);
+
+	// patch sceSblACMgrIsAllowedSystemLevelDebugging return 1
+	memcpy((void *)(kernbase + 0x11730), "\x48\xC7\xC0\x01\x00\x00\x00\xC3", 8);
+
+	// patch priv_check return 0
+	memcpy((void *)(kernbase + 0x2FFCD0), "\x48\xC7\xC0\x00\x00\x00\x00\xC3", 8);
+
 	cpu_enable_wp();
 }
 
@@ -55,6 +64,7 @@ void _main(void) {
 	cpu_enable_wp();
 
 	printf("[ps4debug] kdebugger loaded\n");
+	printf("[ps4debug] kernel base 0x%llX\n", get_kbase());
 
 	install_hooks();
 	install_debugger();

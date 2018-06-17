@@ -54,7 +54,7 @@ int sys_proc_rw(struct thread *td, struct sys_proc_rw_args *uap);
 struct sys_proc_vm_map_args {
     struct proc_vm_map_entry *maps;
     uint64_t num;
-};
+} __attribute__((packed));
 struct sys_proc_cmd_args {
     uint64_t pid;
     uint64_t cmd;
@@ -81,6 +81,7 @@ int sys_kern_rw(struct thread *td, struct sys_kern_rw_args *uap);
 #define SYS_CONSOLE_CMD_REBOOT       1
 struct sys_console_cmd_args {
     uint64_t cmd;
+    void *data;
 };
 int sys_console_cmd(struct thread *td, struct sys_console_cmd_args *uap);
 

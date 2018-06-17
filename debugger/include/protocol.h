@@ -40,6 +40,7 @@
 
 #define CMD_CONSOLE_REBOOT      0xBDDD0001
 #define CMD_CONSOLE_END         0xBDDD0002
+#define CMD_CONSOLE_PRINT		0xBDDD0003
 
 #define VALID_CMD(cmd)          (((cmd & 0xFF000000) >> 24) == 0xBD)
 #define VALID_PROC_CMD(cmd)     (((cmd & 0x00FF0000) >> 16) == 0xAA)
@@ -122,7 +123,22 @@ struct cmd_debug_attach_packet {
 #define CMD_DEBUG_ATTACH_PACKET_SIZE 4
 
 // kern
+struct cmd_kern_read_packet {
+	uint64_t address;
+	uint32_t length;
+} __attribute__((packed));
+#define CMD_KERN_READ_PACKET_SIZE 12
+
+struct cmd_kern_write_packet {
+	uint64_t address;
+	uint32_t length;
+} __attribute__((packed));
+#define CMD_KERN_WRITE_PACKET_SIZE 12
 
 // console
+struct cmd_console_print_packet {
+	uint32_t length;
+} __attribute__((packed));
+#define CMD_CONSOLE_PRINT_PACKET_SIZE 4
 
 #endif
