@@ -46,7 +46,7 @@ int debug_getregs_handle(int fd, struct cmd_packet *packet) {
     //check the pid if already assigned, we can call PT_VM_TIMESTAMP to be more precisely.
     if (dbg_pid == -1)
     {
-        net_send_status(fd, CMD_ERROR);
+        net_send_status(fd, CMD_DATA_NULL);
         return 1;
     }
 
@@ -58,7 +58,7 @@ int debug_getregs_handle(int fd, struct cmd_packet *packet) {
     ptrace(PT_GETREGS, dbg_pid, &reg64, NULL);
     if (errno != 0)
     {
-        net_send_status(fd, CMD_ERROR);
+        net_send_status(fd, CMD_DATA_NULL);
         return 1;
     }
     net_send_status(fd, CMD_SUCCESS);
@@ -69,7 +69,7 @@ int debug_getfregs_handle(int fd, struct cmd_packet *packet) {
     //check the pid if already assigned, we can call PT_TIMESTAMP to be more precisely.
     if (dbg_pid == -1)
     {
-        net_send_status(fd, CMD_ERROR);
+        net_send_status(fd, CMD_DATA_NULL);
         return 1;
     }
 
@@ -81,7 +81,7 @@ int debug_getfregs_handle(int fd, struct cmd_packet *packet) {
     ptrace(PT_GETFPREGS, dbg_pid, &fpreg64, NULL);
     if (errno != 0)
     {
-        net_send_status(fd, CMD_ERROR);
+        net_send_status(fd, CMD_DATA_NULL);
         return 1;
     }
     net_send_status(fd, CMD_SUCCESS);
@@ -92,7 +92,7 @@ int debug_getdbregs_handle(int fd, struct cmd_packet *packet) {
     //check the pid if already assigned, we can call PT_TIMESTAMP to be more precisely.
     if (dbg_pid == -1)
     {
-        net_send_status(fd, CMD_ERROR);
+        net_send_status(fd, CMD_DATA_NULL);
         return 1;
     }
 
@@ -104,7 +104,7 @@ int debug_getdbregs_handle(int fd, struct cmd_packet *packet) {
     ptrace(PT_GETDBREGS, dbg_pid, &dbreg64, NULL);
     if (errno != 0)
     {
-        net_send_status(fd, CMD_ERROR);
+        net_send_status(fd, CMD_DATA_NULL);
         return 1;
     }
     net_send_status(fd, CMD_SUCCESS);
@@ -113,16 +113,90 @@ int debug_getdbregs_handle(int fd, struct cmd_packet *packet) {
 }
 
 int debug_setregs_handle(int fd, struct cmd_packet *packet) {
-    //check the pid if already assigned, we can call PT_TIMESTAMP to be more precisely.
+
     if (dbg_pid == -1)
     {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
 
-    //todo: need more suggestions
+    struct __reg64* reg64;
+    reg64 = (struct __reg64*)packet->data;
+    if (!reg64)
+    {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+
+    errno = 0;
+    ptrace(PT_SETREGS, dbg_pid, reg64, NULL);
+
+    if (errno != 0)
+    {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+
+    net_send_status(fd, CMD_SUCCESS);
     return 0;
 }
+int debug_setfregs_handle(int fd, struct cmd_packet *packet) {
+
+    if (dbg_pid == -1)
+    {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+
+    struct __fpreg64* fpreg64;
+    fpreg64 = (struct __fpreg64*)packet->data;
+    if (!fpreg64)
+    {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+
+    errno = 0;
+    ptrace(PT_SETFPREGS, dbg_pid, fpreg64, NULL);
+
+    if (errno != 0)
+    {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+
+    net_send_status(fd, CMD_SUCCESS);
+    return 0;
+}
+int debug_setdbregs_handle(int fd, struct cmd_packet *packet) {
+
+    if (dbg_pid == -1)
+    {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+
+    struct __dbreg64* dbreg64;
+    dbreg64 = (struct __dbreg64*)packet->data;
+    if (!dbreg64)
+    {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+
+    errno = 0;
+    ptrace(PT_SETDBREGS, dbg_pid, dbreg64, NULL);
+
+    if (errno != 0)
+    {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+
+    net_send_status(fd, CMD_SUCCESS);
+    return 0;
+}
+
 int debug_breakpt_handle(int fd, struct cmd_packet *packet) {
     // read original byte
     // write 0xCC to process
@@ -203,12 +277,23 @@ int debug_handle(int fd, struct cmd_packet *packet) {
             return debug_getfregs_handle(fd, packet);
         case CMD_DEBUG_GETDBGREGS:
             return debug_getdbregs_handle(fd, packet);
+        case CMD_DEBUG_SETREGS:
+            return debug_setregs_handle(fd, packet);
+        case CMD_DEBUG_SETFREGS:
+            return debug_setfregs_handle(fd, packet);
+        case CMD_DEBUG_SETDBREGS:
+            return debug_setdbregs_handle(fd, packet);
 
             // todo: registers
             /*
-            case CMD_DEBUG_SETREGS:
-            case CMD_DEBUG_SETFREGS:
-            case CMD_DEBUG_SETDBGREGS:*/
+                case SINGLE_STEP:
+                case STEP_OVER:
+                case PAUSE
+                case CONTINUE
+                case SUSPEND
+                case RESUME
+                case BREAKPOINT
+             */
         default:
             return 1;
     }

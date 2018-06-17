@@ -84,6 +84,9 @@ int debug_getregs_handle(int fd, struct cmd_packet *packet);
 int debug_getfregs_handle(int fd, struct cmd_packet *packet);
 int debug_getdbregs_handle(int fd, struct cmd_packet *packet);
 int debug_setregs_handle(int fd, struct cmd_packet *packet);
+int debug_setfregs_handle(int fd, struct cmd_packet *packet);
+int debug_setdbregs_handle(int fd, struct cmd_packet *packet);
+
 // todo: registers
 
 void *debug_monitor_thread(void *arg);
