@@ -42,161 +42,6 @@ int debug_detach_handle(int fd, struct cmd_packet *packet) {
     return 0;
 }
 
-int debug_getregs_handle(int fd, struct cmd_packet *packet) {
-    //check the pid if already assigned, we can call PT_VM_TIMESTAMP to be more precisely.
-    if (dbg_pid == -1)
-    {
-        net_send_status(fd, CMD_DATA_NULL);
-        return 1;
-    }
-
-    //clear the errno before calling the function to disambiguate, sometimes ptrace return -1 for success or 0 for most successful operations.
-    //calling the ptrace and check if errno has assigned, Successful calls never set errno; once set, it remains until another error occurs.
-
-    errno = 0;
-    struct __reg64 reg64;
-    ptrace(PT_GETREGS, dbg_pid, &reg64, NULL);
-    if (errno != 0)
-    {
-        net_send_status(fd, CMD_DATA_NULL);
-        return 1;
-    }
-    net_send_status(fd, CMD_SUCCESS);
-    net_send_data(fd, &reg64, sizeof(struct __reg64));
-    return 0;
-}
-int debug_getfregs_handle(int fd, struct cmd_packet *packet) {
-    //check the pid if already assigned, we can call PT_TIMESTAMP to be more precisely.
-    if (dbg_pid == -1)
-    {
-        net_send_status(fd, CMD_DATA_NULL);
-        return 1;
-    }
-
-    //clear the errno before calling the function to disambiguate, sometimes ptrace return -1 for success or 0 for most successful operations.
-    //calling the ptrace and check if errno has assigned, Successful calls never set errno; once set, it remains until another error occurs.
-
-    errno = 0;
-    struct __fpreg64 fpreg64;
-    ptrace(PT_GETFPREGS, dbg_pid, &fpreg64, NULL);
-    if (errno != 0)
-    {
-        net_send_status(fd, CMD_DATA_NULL);
-        return 1;
-    }
-    net_send_status(fd, CMD_SUCCESS);
-    net_send_data(fd, &fpreg64, sizeof(struct __fpreg64));
-    return 0;
-}
-int debug_getdbregs_handle(int fd, struct cmd_packet *packet) {
-    //check the pid if already assigned, we can call PT_TIMESTAMP to be more precisely.
-    if (dbg_pid == -1)
-    {
-        net_send_status(fd, CMD_DATA_NULL);
-        return 1;
-    }
-
-    //clear the errno before calling the function to disambiguate, sometimes ptrace return -1 for success or 0 for most successful operations.
-    //calling the ptrace and check if errno has assigned, Successful calls never set errno; once set, it remains until another error occurs.
-
-    errno = 0;
-    struct __dbreg64 dbreg64;
-    ptrace(PT_GETDBREGS, dbg_pid, &dbreg64, NULL);
-    if (errno != 0)
-    {
-        net_send_status(fd, CMD_DATA_NULL);
-        return 1;
-    }
-    net_send_status(fd, CMD_SUCCESS);
-    net_send_data(fd, &dbreg64, sizeof(struct __dbreg64));
-    return 0;
-}
-
-int debug_setregs_handle(int fd, struct cmd_packet *packet) {
-
-    if (dbg_pid == -1)
-    {
-        net_send_status(fd, CMD_ERROR);
-        return 1;
-    }
-
-    struct __reg64* reg64;
-    reg64 = (struct __reg64*)packet->data;
-    if (!reg64)
-    {
-        net_send_status(fd, CMD_ERROR);
-        return 1;
-    }
-
-    errno = 0;
-    ptrace(PT_SETREGS, dbg_pid, reg64, NULL);
-
-    if (errno != 0)
-    {
-        net_send_status(fd, CMD_ERROR);
-        return 1;
-    }
-
-    net_send_status(fd, CMD_SUCCESS);
-    return 0;
-}
-int debug_setfregs_handle(int fd, struct cmd_packet *packet) {
-
-    if (dbg_pid == -1)
-    {
-        net_send_status(fd, CMD_ERROR);
-        return 1;
-    }
-
-    struct __fpreg64* fpreg64;
-    fpreg64 = (struct __fpreg64*)packet->data;
-    if (!fpreg64)
-    {
-        net_send_status(fd, CMD_ERROR);
-        return 1;
-    }
-
-    errno = 0;
-    ptrace(PT_SETFPREGS, dbg_pid, fpreg64, NULL);
-
-    if (errno != 0)
-    {
-        net_send_status(fd, CMD_ERROR);
-        return 1;
-    }
-
-    net_send_status(fd, CMD_SUCCESS);
-    return 0;
-}
-int debug_setdbregs_handle(int fd, struct cmd_packet *packet) {
-
-    if (dbg_pid == -1)
-    {
-        net_send_status(fd, CMD_ERROR);
-        return 1;
-    }
-
-    struct __dbreg64* dbreg64;
-    dbreg64 = (struct __dbreg64*)packet->data;
-    if (!dbreg64)
-    {
-        net_send_status(fd, CMD_ERROR);
-        return 1;
-    }
-
-    errno = 0;
-    ptrace(PT_SETDBREGS, dbg_pid, dbreg64, NULL);
-
-    if (errno != 0)
-    {
-        net_send_status(fd, CMD_ERROR);
-        return 1;
-    }
-
-    net_send_status(fd, CMD_SUCCESS);
-    return 0;
-}
-
 int debug_breakpt_handle(int fd, struct cmd_packet *packet) {
     // read original byte
     // write 0xCC to process
@@ -219,6 +64,148 @@ int debug_stopthr_handle(int fd, struct cmd_packet *packet) {
 }
 
 int debug_resumethr_handle(int fd, struct cmd_packet *packet) {
+    return 0;
+}
+
+int debug_getregs_handle(int fd, struct cmd_packet *packet) {
+    struct __reg64 reg64;
+    int r;
+
+    if (dbg_pid == -1) {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+    
+    r = ptrace(PT_GETREGS, dbg_pid, &reg64, NULL);
+    if (r == -1 && errno) {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+
+    net_send_status(fd, CMD_SUCCESS);
+    net_send_data(fd, &reg64, sizeof(struct __reg64));
+
+    return 0;
+}
+
+int debug_getfregs_handle(int fd, struct cmd_packet *packet) {
+    struct __fpreg64 fpreg64;
+    int r;
+
+    if (dbg_pid == -1) {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+
+    r = ptrace(PT_GETFPREGS, dbg_pid, &fpreg64, NULL);
+    if (r == -1 && errno) {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+
+    net_send_status(fd, CMD_SUCCESS);
+    net_send_data(fd, &fpreg64, sizeof(struct __fpreg64));
+
+    return 0;
+}
+
+int debug_getdbregs_handle(int fd, struct cmd_packet *packet) {
+    struct __dbreg64 dbreg64;
+    int r;
+
+    if (dbg_pid == -1) {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+
+    struct __dbreg64 dbreg64;
+    r = ptrace(PT_GETDBREGS, dbg_pid, &dbreg64, NULL);
+    if (r == -1 && errno) {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+    
+    net_send_status(fd, CMD_SUCCESS);
+    net_send_data(fd, &dbreg64, sizeof(struct __dbreg64));
+
+    return 0;
+}
+
+int debug_setregs_handle(int fd, struct cmd_packet *packet) {
+    struct __reg64 *reg64;
+    int r;
+
+    if (dbg_pid == -1) {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+
+    reg64 = (struct __reg64 *)packet->data;
+    if (!reg64) {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+
+    r = ptrace(PT_SETREGS, dbg_pid, reg64, NULL);
+    if (r == -1 && errno) {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+
+    net_send_status(fd, CMD_SUCCESS);
+
+    return 0;
+}
+
+int debug_setfregs_handle(int fd, struct cmd_packet *packet) {
+    struct __fpreg64 *fpreg64;
+    int r;
+
+    if (dbg_pid == -1) {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+
+    fpreg64 = (struct __fpreg64 *)packet->data;
+    if (!fpreg64) {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+
+    r = ptrace(PT_SETFPREGS, dbg_pid, fpreg64, NULL);
+    if (r == -1 && errno) {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+
+    net_send_status(fd, CMD_SUCCESS);
+
+    return 0;
+}
+
+int debug_setdbregs_handle(int fd, struct cmd_packet *packet) {
+    struct __dbreg64 *dbreg64;
+    int r;
+
+    if (dbg_pid == -1) {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+
+    dbreg64 = (struct __dbreg64 *)packet->data;
+    if (!dbreg64) {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+errno
+    r = ptrace(PT_SETDBREGS, dbg_pid, dbreg64, NULL);
+    if (r == -1 && errno) {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+
+    net_send_status(fd, CMD_SUCCESS);
+
     return 0;
 }
 
@@ -281,7 +268,7 @@ int debug_handle(int fd, struct cmd_packet *packet) {
             return debug_setregs_handle(fd, packet);
         case CMD_DEBUG_SETFREGS:
             return debug_setfregs_handle(fd, packet);
-        case CMD_DEBUG_SETDBREGS:
+        case CMD_DEBUG_SETDBGREGS:
             return debug_setdbregs_handle(fd, packet);
 
             // todo: registers
@@ -292,7 +279,6 @@ int debug_handle(int fd, struct cmd_packet *packet) {
                 case CONTINUE
                 case SUSPEND
                 case RESUME
-                case BREAKPOINT
              */
         default:
             return 1;
