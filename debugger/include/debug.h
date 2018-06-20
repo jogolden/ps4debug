@@ -14,12 +14,13 @@
 #define MAX_WATCHPOINTS 4
 
 struct debug_breakpoint {
-    uint32_t enabled;
+    uint32_t valid;
     uint64_t address;
     uint8_t original;
 };
 
 struct debug_watchpoint {
+    uint32_t num;
     uint64_t address;
     uint32_t width; // 1/2/4/8
 };

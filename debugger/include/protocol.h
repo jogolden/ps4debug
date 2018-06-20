@@ -122,6 +122,19 @@ struct cmd_debug_attach_packet {
 } __attribute__((packed));
 #define CMD_DEBUG_ATTACH_PACKET_SIZE 4
 
+struct cmd_debug_breakpt_packet {
+	uint32_t remove;
+	uint64_t address;
+} __attribute__((packed));
+#define CMD_DEBUG_BREAKPT_PACKET_SIZE 12
+
+struct cmd_debug_watchpt_packet {
+	uint32_t remove;
+	uint32_t width;
+	uint64_t address;
+} __attribute__((packed));
+#define CMD_DEBUG_WATCHPT_PACKET_SIZE 16
+
 // kern
 struct cmd_kern_read_packet {
 	uint64_t address;

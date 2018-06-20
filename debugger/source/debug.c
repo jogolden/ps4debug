@@ -9,6 +9,29 @@ int dbg_fd;
 struct debug_breakpoint breakpoints[MAX_BREAKPOINTS];
 struct debug_watchpoint watchpoints[MAX_WATCHPOINTS];
 
+int add_breakpt(struct debug_breakpoint *breakpt) {
+    for(int i = 0; i < MAX_BREAKPOINTS; i++) {
+        if(!breakpoints[i].valid) {
+            memcpy(&breakpoints[i], breakpt, sizeof(struct debug_breakpoint));
+            breakpoints[i].valid = 0;
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
+int remove_breakpt(struct debug_breakpoint *breakpt) {
+    for(int i = 0; i < MAX_BREAKPOINTS; i++) {
+        if(breakpoints[i].address == breakpt->address) {
+            breakpoints[i].valid = 0;
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
 int debug_attach_handle(int fd, struct cmd_packet *packet) {
     struct cmd_debug_attach_packet *ap;
 
@@ -30,6 +53,7 @@ int debug_attach_handle(int fd, struct cmd_packet *packet) {
 
     return 1;
 }
+
 int debug_detach_handle(int fd, struct cmd_packet *packet) {
     if(dbg_pid != -1) {
         ptrace(PT_DETACH, dbg_pid, NULL, NULL);
@@ -43,15 +67,70 @@ int debug_detach_handle(int fd, struct cmd_packet *packet) {
 }
 
 int debug_breakpt_handle(int fd, struct cmd_packet *packet) {
-    // read original byte
-    // write 0xCC to process
-    // call wait4 on process
-    // wait until trap -> debug_monitor_thread
+    struct cmd_debug_breakpt_packet *bp;
+    struct debug_breakpoint dbgbp;
+    uint8_t int3;
+    uint8_t original;
+
+    bp = (struct cmd_debug_breakpt_packet *)packet->data;
+    
+    if (dbg_pid == -1) {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+
+    if(!bp) {
+        net_send_status(fd, CMD_DATA_NULL);
+        return 1;
+    }
+
+    dbgbp.valid = 1;
+    dbgbp.address = bp->address;
+
+    if(bp->remove) {
+        if(remove_breakpt(&dbgbp)) {
+            net_send_status(fd, CMD_ERROR);
+            return 0;
+        }
+    } else {
+        // read original byte
+        // write 0xCC to process
+        // call wait4 on process
+        // wait until trap -> debug_monitor_thread
+        
+        sys_proc_rw(dbg_pid, bp->address, &original, 1, 0);
+        dbgbp.original = original;
+
+        int3 = 0xCC;
+        sys_proc_rw(dbg_pid, bp->address, int3, 1, 1);
+
+        if(add_breakpt(&dbgbp)) {
+            net_send_status(fd, CMD_ERROR);
+            return 0;
+        }
+    }
+
+    net_send_status(fd, CMD_SUCCESS);
+
     return 0;
 }
 
 int debug_watchpt_handle(int fd, struct cmd_packet *packet) {
+    struct cmd_debug_watchpt_packet *wp;
+    
+    if (dbg_pid == -1) {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+
     // use debug registers
+    if(!wp) {
+        net_send_status(fd, CMD_SUCCESS);
+        return 1;
+    }
+
+    net_send_status(fd, CMD_SUCCESS);
+
     return 0;
 }
 
@@ -118,7 +197,6 @@ int debug_getdbregs_handle(int fd, struct cmd_packet *packet) {
         return 1;
     }
 
-    struct __dbreg64 dbreg64;
     r = ptrace(PT_GETDBREGS, dbg_pid, &dbreg64, NULL);
     if (r == -1 && errno) {
         net_send_status(fd, CMD_ERROR);
@@ -197,7 +275,7 @@ int debug_setdbregs_handle(int fd, struct cmd_packet *packet) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
-errno
+    
     r = ptrace(PT_SETDBREGS, dbg_pid, dbreg64, NULL);
     if (r == -1 && errno) {
         net_send_status(fd, CMD_ERROR);
@@ -237,6 +315,9 @@ void *debug_monitor_thread(void *arg) {
 
 void start_debug() {
     dbg_pid = dbg_fd = -1;
+    
+    memset(breakpoints, NULL, sizeof(breakpoints));
+    memset(watchpoints, NULL, sizeof(watchpoints));
 
     ScePthread thread;
     scePthreadCreate(&thread, NULL, debug_monitor_thread, NULL, "dbgmonitor");
