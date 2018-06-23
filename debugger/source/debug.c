@@ -117,6 +117,8 @@ int debug_breakpt_handle(int fd, struct cmd_packet *packet) {
 
 int debug_watchpt_handle(int fd, struct cmd_packet *packet) {
     struct cmd_debug_watchpt_packet *wp;
+
+    wp = (struct cmd_debug_watchpt_packet *)packet->data;
     
     if (dbg_pid == -1) {
         net_send_status(fd, CMD_ERROR);
@@ -135,27 +137,115 @@ int debug_watchpt_handle(int fd, struct cmd_packet *packet) {
 }
 
 int debug_threads_handle(int fd, struct cmd_packet *packet) {
-    return 0;
-}
-
-int debug_stopthr_handle(int fd, struct cmd_packet *packet) {
-    return 0;
-}
-
-int debug_resumethr_handle(int fd, struct cmd_packet *packet) {
-    return 0;
-}
-
-int debug_getregs_handle(int fd, struct cmd_packet *packet) {
-    struct __reg64 reg64;
+    void *lwpids;
+    int nlwps;
     int r;
+    int size;
 
     if (dbg_pid == -1) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
+
+    nlwps = ptrace(PT_GETNUMLWPS, dbg_pid, NULL, 0);
+
+    if(nlwps == -1) {
+        net_send_status(fd, CMD_ERROR);
+        return 0;
+    }
+
+    // i assume the lwpid_t is 32 bits wide
+    size = nlwps * sizeof(uint32_t);
+    lwpids = malloc(size);
     
-    r = ptrace(PT_GETREGS, dbg_pid, &reg64, NULL);
+    r = ptrace(PT_GETLWPLIST, dbg_pid, lwpids, nlwps);
+    
+    if(r == -1) {
+        net_send_status(fd, CMD_ERROR);
+        return 0;
+    }
+
+    net_send_status(fd, CMD_SUCCESS);
+    net_send_data(fd, &nlwps, sizeof(nlwps));
+    net_send_data(fd, lwpids, size);
+
+    free(lwpids);
+
+    return 0;
+}
+
+int debug_stopthr_handle(int fd, struct cmd_packet *packet) {
+    struct cmd_debug_stopthr_packet *sp;
+    int r;
+
+    sp = (struct cmd_debug_stopthr_packet *)packet->data;
+
+    if(dbg_pid == -1) {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+
+    if(!sp) {
+        net_send_status(fd, CMD_DATA_NULL);
+        return 1;
+    }
+
+    r = ptrace(PT_SUSPEND, sp->lwpid, NULL, 0);
+    if(r == -1) {
+        net_send_status(fd, CMD_ERROR);
+        return 0;
+    }
+
+    net_send_status(fd, CMD_SUCCESS);
+
+    return 0;
+}
+
+int debug_resumethr_handle(int fd, struct cmd_packet *packet) {
+    struct cmd_debug_resumethr_packet *rp;
+    int r;
+
+    rp = (struct cmd_debug_resumethr_packet *)packet->data;
+
+    if(dbg_pid == -1) {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+
+    if(!rp) {
+        net_send_status(fd, CMD_DATA_NULL);
+        return 1;
+    }
+
+    r = ptrace(PT_RESUME, rp->lwpid, NULL, 0);
+    if(r == -1) {
+        net_send_status(fd, CMD_ERROR);
+        return 0;
+    }
+
+    net_send_status(fd, CMD_SUCCESS);
+
+    return 0;
+}
+
+int debug_getregs_handle(int fd, struct cmd_packet *packet) {
+    struct cmd_debug_getregs_packet *rp;
+    struct __reg64 reg64;
+    int r;
+
+    rp = (struct cmd_debug_getregs_packet *)packet->data;
+
+    if (dbg_pid == -1) {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+
+    if(!rp) {
+        net_send_status(fd, CMD_DATA_NULL);
+        return 1;
+    }
+    
+    r = ptrace(PT_GETREGS, rp->lwpid, &reg64, NULL);
     if (r == -1 && errno) {
         net_send_status(fd, CMD_ERROR);
         return 1;
@@ -168,15 +258,23 @@ int debug_getregs_handle(int fd, struct cmd_packet *packet) {
 }
 
 int debug_getfregs_handle(int fd, struct cmd_packet *packet) {
+    struct cmd_debug_getregs_packet *rp;
     struct __fpreg64 fpreg64;
     int r;
+
+    rp = (struct cmd_debug_getregs_packet *)packet->data;
 
     if (dbg_pid == -1) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
+    
+    if(!rp) {
+        net_send_status(fd, CMD_DATA_NULL);
+        return 1;
+    }
 
-    r = ptrace(PT_GETFPREGS, dbg_pid, &fpreg64, NULL);
+    r = ptrace(PT_GETFPREGS, rp->lwpid, &fpreg64, NULL);
     if (r == -1 && errno) {
         net_send_status(fd, CMD_ERROR);
         return 1;
@@ -189,15 +287,23 @@ int debug_getfregs_handle(int fd, struct cmd_packet *packet) {
 }
 
 int debug_getdbregs_handle(int fd, struct cmd_packet *packet) {
+    struct cmd_debug_getregs_packet *rp;
     struct __dbreg64 dbreg64;
     int r;
+
+    rp = (struct cmd_debug_getregs_packet *)packet->data;
 
     if (dbg_pid == -1) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
 
-    r = ptrace(PT_GETDBREGS, dbg_pid, &dbreg64, NULL);
+    if(!rp) {
+        net_send_status(fd, CMD_DATA_NULL);
+        return 1;
+    }
+
+    r = ptrace(PT_GETDBREGS, rp->lwpid, &dbreg64, NULL);
     if (r == -1 && errno) {
         net_send_status(fd, CMD_ERROR);
         return 1;

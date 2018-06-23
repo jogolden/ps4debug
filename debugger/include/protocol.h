@@ -135,6 +135,27 @@ struct cmd_debug_watchpt_packet {
 } __attribute__((packed));
 #define CMD_DEBUG_WATCHPT_PACKET_SIZE 16
 
+struct cmd_debug_stopthr_packet {
+	uint32_t lwpid;
+} __attribute__((packed));
+#define CMD_DEBUG_STOPTHR_PACKET_SIZE 4
+
+struct cmd_debug_resumethr_packet {
+	uint32_t lwpid;
+} __attribute__((packed));
+#define CMD_DEBUG_RESUMETHR_PACKET_SIZE 4
+
+struct cmd_debug_getregs_packet {
+	uint32_t lwpid;
+} __attribute__((packed));
+#define CMD_DEBUG_GETREGS_PACKET_SIZE 4
+
+struct cmd_debug_setregs_packet {
+	uint32_t lwpid;
+	uint32_t length;
+} __attribute__((packed));
+#define CMD_DEBUG_SETREGS_PACKET_SIZE 4
+
 // kern
 struct cmd_kern_read_packet {
 	uint64_t address;

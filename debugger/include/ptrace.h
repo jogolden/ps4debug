@@ -52,6 +52,20 @@ struct ptrace_io_desc {
 	uint64_t piod_len;	/* request length */
 };
 
+// this structure is 100% wrong
+struct ptrace_lwpinfo {
+	uint32_t pl_lwpid;
+	int pl_event;
+	int pl_flags;
+	uint32_t pl_sigmask;
+	uint32_t pl_siglist;
+	uint32_t pl_siginfo;
+	char pl_tdname[32 + 1];
+	uint32_t pl_child_pid;
+	uint32_t pl_syscall_code;
+	uint32_t pl_syscall_narg;
+};
+
 int ptrace(int req, int pid, void *addr, int data);
 int wait4(int wpid, int *status, int options, void *rusage);
 
