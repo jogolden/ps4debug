@@ -35,8 +35,6 @@ void *client_thread(void *arg) {
     fd = (uint64_t)(void *)arg;
 
     while(1) {
-        scePthreadYield();
-
         r = net_recv_data(fd, &packet, CMD_PACKET_SIZE, 0);
 
         if (!r) {
@@ -44,6 +42,7 @@ void *client_thread(void *arg) {
 			if (errno == ECONNRESET) {
 				goto error;
 			}
+
 			continue;
 		}
 
@@ -51,11 +50,13 @@ void *client_thread(void *arg) {
 
         // invalid packet
 		if (packet.magic != PACKET_MAGIC) {
+            uprintf("[ps4debug] invalid packet magic %X!", packet.magic);
 			continue;
 		}
 
 		// mismatch received size
 		if (r != CMD_PACKET_SIZE) {
+            uprintf("[ps4debug] invalid recieve size %i!", r);
 			continue;
 		}
 
@@ -66,6 +67,8 @@ void *client_thread(void *arg) {
 			if (!data) {
 				goto error;
 			}
+
+            uprintf("recieving data length %i", length);
 
 			// recv data
 			r = net_recv_data(fd, data, length, 1);
@@ -99,7 +102,7 @@ void *client_thread(void *arg) {
 			goto error;
 		}
 
-        sceKernelUsleep(40000);
+        sceKernelUsleep(50000);
     }
 
 error:
@@ -110,6 +113,8 @@ error:
 }
 
 void start_server() {
+    uprintf("[ps4debug] server started");
+
     int fd, flag;
 
     // reset server

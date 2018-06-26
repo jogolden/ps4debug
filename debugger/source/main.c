@@ -13,8 +13,13 @@ int _main(void) {
 	initPthread();
 	initNetwork();
 	
+	uprintf("[ps4debug] debugger loaded! have fun! :P");
+    uprintf("golden <3 easy");
+
 	start_debug();
+	
+	// this blocks
 	start_server();
-    
+
 	return 0;
 }

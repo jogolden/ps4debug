@@ -6,6 +6,7 @@
 #define _PTRACE_H
 
 #include <ps4.h>
+#include "kdbg.h"
 
 // taken from ptrace.h
 

@@ -27,7 +27,8 @@ extern struct sysent *sysents;
 struct proc_list_entry {
     char p_comm[32];
     int pid;
-};
+}  __attribute__((packed));
+
 struct sys_proc_list_args {
     struct proc_list_entry *procs;
     uint64_t *num;
@@ -55,6 +56,7 @@ struct sys_proc_vm_map_args {
     struct proc_vm_map_entry *maps;
     uint64_t num;
 } __attribute__((packed));
+
 struct sys_proc_cmd_args {
     uint64_t pid;
     uint64_t cmd;

@@ -22,6 +22,7 @@ TARGET = kdebugger.elf
 
 $(TARGET): $(ODIR) $(OBJS)
 	$(CC) crt0.s $(ODIR)/*.o -o $(TARGET) $(CFLAGS) $(LFLAGS) $(LIBS)
+	elfedit --output-type=DYN $(TARGET)
 	#strip $(TARGET)
 
 $(ODIR)/%.o: $(SDIR)/%.c

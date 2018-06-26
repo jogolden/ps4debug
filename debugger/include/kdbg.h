@@ -12,7 +12,7 @@
 struct proc_list_entry {
     char p_comm[32];
     int pid;
-};
+}  __attribute__((packed));
 void sys_proc_list(struct proc_list_entry *procs, uint64_t *num);
 
 // custom syscall 108

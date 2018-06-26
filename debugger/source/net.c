@@ -16,7 +16,7 @@ int net_send_data(int fd, void *data, int length) {
 			sent = sceNetSend(fd, data + offset, left, 0);
 		}
 
-		if (!sent && !errno) {
+		if (!sent && errno) {
 			return 0;
 		}
 
@@ -40,7 +40,7 @@ int net_recv_data(int fd, void *data, int length, int force) {
 		}
 
 		if (!recv) {
-			if(!errno) {
+			if(errno) {
 				return 0;
 			}
 
@@ -58,9 +58,6 @@ int net_recv_data(int fd, void *data, int length, int force) {
 
 int net_send_status(int fd, uint32_t status) {
 	uint32_t d = status;
-	if (net_send_data(fd, &d, sizeof(uint32_t)) == sizeof(uint32_t)) {
-		return 0;
-	} else {
-		return 1;
-	}
+
+	return net_send_data(fd, &d, sizeof(uint32_t));
 }

@@ -5,19 +5,21 @@
 #include "proc.h"
 
 int proc_list_handle(int fd, struct cmd_packet *packet) {
+    void *data;
     uint64_t num;
     uint32_t length;
 
-    sys_proc_list(0, &num);
+    sys_proc_list(NULL, &num);
 
     if(num) {
         length = sizeof(struct proc_list_entry) * num;
-        void *data = malloc(length);
+        data = malloc(length);
         sys_proc_list(data, &num);
 
         net_send_status(fd, CMD_SUCCESS);
         net_send_data(fd, &num, sizeof(uint32_t));
         net_send_data(fd, data, length);
+        free(data);
 
         return 0;
     }

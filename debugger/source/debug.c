@@ -102,7 +102,7 @@ int debug_breakpt_handle(int fd, struct cmd_packet *packet) {
         dbgbp.original = original;
 
         int3 = 0xCC;
-        sys_proc_rw(dbg_pid, bp->address, int3, 1, 1);
+        sys_proc_rw(dbg_pid, bp->address, &int3, 1, 1);
 
         if(add_breakpt(&dbgbp)) {
             net_send_status(fd, CMD_ERROR);
