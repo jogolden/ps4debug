@@ -4,16 +4,13 @@
 
 #include "debug.h"
 
-int dbg_pid;
-int dbg_fd;
-struct debug_breakpoint breakpoints[MAX_BREAKPOINTS];
-struct debug_watchpoint watchpoints[MAX_WATCHPOINTS];
+struct debug_context dbgctx;
 
 int add_breakpt(struct debug_breakpoint *breakpt) {
     for(int i = 0; i < MAX_BREAKPOINTS; i++) {
-        if(!breakpoints[i].valid) {
-            memcpy(&breakpoints[i], breakpt, sizeof(struct debug_breakpoint));
-            breakpoints[i].valid = 0;
+        if(!dbgctx.breakpoints[i].valid) {
+            memcpy(&dbgctx.breakpoints[i], breakpt, sizeof(struct debug_breakpoint));
+            dbgctx.breakpoints[i].valid = 0;
             return 0;
         }
     }
@@ -23,8 +20,8 @@ int add_breakpt(struct debug_breakpoint *breakpt) {
 
 int remove_breakpt(struct debug_breakpoint *breakpt) {
     for(int i = 0; i < MAX_BREAKPOINTS; i++) {
-        if(breakpoints[i].address == breakpt->address) {
-            breakpoints[i].valid = 0;
+        if(dbgctx.breakpoints[i].address == breakpt->address) {
+            dbgctx.breakpoints[i].valid = 0;
             return 0;
         }
     }
@@ -41,8 +38,8 @@ int debug_attach_handle(int fd, struct cmd_packet *packet) {
         ptrace(PT_ATTACH, ap->pid, NULL, NULL);
         ptrace(PT_CONTINUE, ap->pid, (void *)1, NULL);
 
-        dbg_pid = ap->pid;
-        dbg_fd = fd;
+        dbgctx.pid = ap->pid;
+        memset(dbgctx.breakpoints, NULL, sizeof(dbgctx.breakpoints));
 
         net_send_status(fd, CMD_SUCCESS);
 
@@ -55,10 +52,9 @@ int debug_attach_handle(int fd, struct cmd_packet *packet) {
 }
 
 int debug_detach_handle(int fd, struct cmd_packet *packet) {
-    if(dbg_pid != -1) {
-        ptrace(PT_DETACH, dbg_pid, NULL, NULL);
-        dbg_pid = -1;
-        dbg_fd = -1;
+    if(dbgctx.pid != -1) {
+        ptrace(PT_DETACH, dbgctx.pid, NULL, NULL);
+        dbgctx.pid = -1;
     }
 
     net_send_status(fd, CMD_SUCCESS);
@@ -74,7 +70,7 @@ int debug_breakpt_handle(int fd, struct cmd_packet *packet) {
 
     bp = (struct cmd_debug_breakpt_packet *)packet->data;
     
-    if (dbg_pid == -1) {
+    if (dbgctx.pid == -1) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
@@ -98,11 +94,11 @@ int debug_breakpt_handle(int fd, struct cmd_packet *packet) {
         // call wait4 on process
         // wait until trap -> debug_monitor_thread
         
-        sys_proc_rw(dbg_pid, bp->address, &original, 1, 0);
+        sys_proc_rw(dbgctx.pid, bp->address, &original, 1, 0);
         dbgbp.original = original;
 
         int3 = 0xCC;
-        sys_proc_rw(dbg_pid, bp->address, &int3, 1, 1);
+        sys_proc_rw(dbgctx.pid, bp->address, &int3, 1, 1);
 
         if(add_breakpt(&dbgbp)) {
             net_send_status(fd, CMD_ERROR);
@@ -120,12 +116,12 @@ int debug_watchpt_handle(int fd, struct cmd_packet *packet) {
 
     wp = (struct cmd_debug_watchpt_packet *)packet->data;
     
-    if (dbg_pid == -1) {
+    if (dbgctx.pid == -1) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
 
-    // use debug registers
+    // TODO: use debug registers
     if(!wp) {
         net_send_status(fd, CMD_SUCCESS);
         return 1;
@@ -142,12 +138,12 @@ int debug_threads_handle(int fd, struct cmd_packet *packet) {
     int r;
     int size;
 
-    if (dbg_pid == -1) {
+    if (dbgctx.pid == -1) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
 
-    nlwps = ptrace(PT_GETNUMLWPS, dbg_pid, NULL, 0);
+    nlwps = ptrace(PT_GETNUMLWPS, dbgctx.pid, NULL, 0);
 
     if(nlwps == -1) {
         net_send_status(fd, CMD_ERROR);
@@ -158,7 +154,7 @@ int debug_threads_handle(int fd, struct cmd_packet *packet) {
     size = nlwps * sizeof(uint32_t);
     lwpids = malloc(size);
     
-    r = ptrace(PT_GETLWPLIST, dbg_pid, lwpids, nlwps);
+    r = ptrace(PT_GETLWPLIST, dbgctx.pid, lwpids, nlwps);
     
     if(r == -1) {
         net_send_status(fd, CMD_ERROR);
@@ -180,7 +176,7 @@ int debug_stopthr_handle(int fd, struct cmd_packet *packet) {
 
     sp = (struct cmd_debug_stopthr_packet *)packet->data;
 
-    if(dbg_pid == -1) {
+    if(dbgctx.pid == -1) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
@@ -207,7 +203,7 @@ int debug_resumethr_handle(int fd, struct cmd_packet *packet) {
 
     rp = (struct cmd_debug_resumethr_packet *)packet->data;
 
-    if(dbg_pid == -1) {
+    if(dbgctx.pid == -1) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
@@ -235,7 +231,7 @@ int debug_getregs_handle(int fd, struct cmd_packet *packet) {
 
     rp = (struct cmd_debug_getregs_packet *)packet->data;
 
-    if (dbg_pid == -1) {
+    if (dbgctx.pid == -1) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
@@ -264,7 +260,7 @@ int debug_getfregs_handle(int fd, struct cmd_packet *packet) {
 
     rp = (struct cmd_debug_getregs_packet *)packet->data;
 
-    if (dbg_pid == -1) {
+    if (dbgctx.pid == -1) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
@@ -293,7 +289,7 @@ int debug_getdbregs_handle(int fd, struct cmd_packet *packet) {
 
     rp = (struct cmd_debug_getregs_packet *)packet->data;
 
-    if (dbg_pid == -1) {
+    if (dbgctx.pid == -1) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
@@ -319,7 +315,7 @@ int debug_setregs_handle(int fd, struct cmd_packet *packet) {
     struct __reg64 *reg64;
     int r;
 
-    if (dbg_pid == -1) {
+    if (dbgctx.pid == -1) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
@@ -330,7 +326,7 @@ int debug_setregs_handle(int fd, struct cmd_packet *packet) {
         return 1;
     }
 
-    r = ptrace(PT_SETREGS, dbg_pid, reg64, NULL);
+    r = ptrace(PT_SETREGS, dbgctx.pid, reg64, NULL);
     if (r == -1 && errno) {
         net_send_status(fd, CMD_ERROR);
         return 1;
@@ -345,7 +341,7 @@ int debug_setfregs_handle(int fd, struct cmd_packet *packet) {
     struct __fpreg64 *fpreg64;
     int r;
 
-    if (dbg_pid == -1) {
+    if (dbgctx.pid == -1) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
@@ -356,7 +352,7 @@ int debug_setfregs_handle(int fd, struct cmd_packet *packet) {
         return 1;
     }
 
-    r = ptrace(PT_SETFPREGS, dbg_pid, fpreg64, NULL);
+    r = ptrace(PT_SETFPREGS, dbgctx.pid, fpreg64, NULL);
     if (r == -1 && errno) {
         net_send_status(fd, CMD_ERROR);
         return 1;
@@ -371,7 +367,7 @@ int debug_setdbregs_handle(int fd, struct cmd_packet *packet) {
     struct __dbreg64 *dbreg64;
     int r;
 
-    if (dbg_pid == -1) {
+    if (dbgctx.pid == -1) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
@@ -382,7 +378,7 @@ int debug_setdbregs_handle(int fd, struct cmd_packet *packet) {
         return 1;
     }
     
-    r = ptrace(PT_SETDBREGS, dbg_pid, dbreg64, NULL);
+    r = ptrace(PT_SETDBREGS, dbgctx.pid, dbreg64, NULL);
     if (r == -1 && errno) {
         net_send_status(fd, CMD_ERROR);
         return 1;
@@ -393,15 +389,40 @@ int debug_setdbregs_handle(int fd, struct cmd_packet *packet) {
     return 0;
 }
 
-void *debug_monitor_thread(void *arg) {
+int debug_start_run_handle(int fd, struct cmd_packet *packet) {
+    int r;
     int status;
 
-    while(1) {
-        scePthreadYield();
+    if (dbgctx.pid == -1) {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
 
-        if(dbg_pid != -1) {
-            if(wait4(dbg_pid, &status, WNOHANG, NULL)) {
-                uprintf("debug_monitor_thread caught status %X", status);
+    net_send_status(fd, CMD_SUCCESS);
+
+    while(1) {
+        //scePthreadYield();
+
+        if(dbgctx.pid != -1) {
+            r = net_recv_data(fd, &status, sizeof(uint32_t), 0);
+
+            // check if disconnected
+            if (errno) {
+                break;
+            }
+
+            if(r == sizeof(uint32_t)) {
+                if(r == CMD_DEBUG_STOP_RUN) {
+                    break;
+                }
+            }
+
+            if(wait4(dbgctx.pid, &status, WNOHANG, NULL)) {
+                uprintf("debug_monitor caught status %X", status);
+                
+                char buffer[100];
+                snprintf(buffer, sizeof(buffer), "status %s", status);
+                net_send_data(fd, buffer, sizeof(buffer));
 
                 // for breakpoint
                 // write og byte
@@ -417,16 +438,8 @@ void *debug_monitor_thread(void *arg) {
 
         sceKernelUsleep(40000);
     }
-}
 
-void start_debug() {
-    dbg_pid = dbg_fd = -1;
-    
-    memset(breakpoints, NULL, sizeof(breakpoints));
-    memset(watchpoints, NULL, sizeof(watchpoints));
-
-    ScePthread thread;
-    scePthreadCreate(&thread, NULL, debug_monitor_thread, NULL, "dbgmonitor");
+    return 0;
 }
 
 int debug_handle(int fd, struct cmd_packet *packet) {
@@ -457,6 +470,15 @@ int debug_handle(int fd, struct cmd_packet *packet) {
             return debug_setfregs_handle(fd, packet);
         case CMD_DEBUG_SETDBGREGS:
             return debug_setdbregs_handle(fd, packet);
+        case CMD_DEBUG_START_RUN: {
+            // once the debugger is started, this will now recv
+            return debug_start_run_handle(fd, packet);
+        }
+        case CMD_DEBUG_STOP_RUN: {
+            // this command is actuall just sent to the debugger raw (recieved above in function debug_start_run_handle)
+            return 0;
+        }
+            // stop the debugger
 
             // todo: registers
             /*

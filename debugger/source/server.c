@@ -4,8 +4,6 @@
 
 #include "server.h"
 
-struct debug_server dbgsrv;
-
 int cmd_handler(int fd, struct cmd_packet *packet) {
 	if (!VALID_CMD(packet->cmd)) {
 		return 1;
@@ -26,27 +24,29 @@ int cmd_handler(int fd, struct cmd_packet *packet) {
     return 0;
 }
 
-void *client_thread(void *arg) {
-    int r, fd;
+int handle_client(int fd) {
     struct cmd_packet packet;
     uint32_t length;
-    uint8_t *data;
-
-    fd = (uint64_t)(void *)arg;
+    void *data;
+    int r;
 
     while(1) {
+        sceKernelUsleep(50000);
+
+        errno = NULL;
         r = net_recv_data(fd, &packet, CMD_PACKET_SIZE, 0);
 
-        if (!r) {
-			// check if disconnected
-			if (errno == ECONNRESET) {
-				goto error;
-			}
+        // check if disconnected
+        if (errno) {
+            goto error;
+        }
 
+        // if we didnt recieve anything just try again
+        if (!r) {
 			continue;
 		}
 
-        uprintf("[ps4debug] client_thread packet %i", fd);
+        uprintf("[ps4debug] client packet %i", fd);
 
         // invalid packet
 		if (packet.magic != PACKET_MAGIC) {
@@ -63,12 +63,12 @@ void *client_thread(void *arg) {
         length = packet.datalen;
 		if (length) {
 			// allocate data
-			data = (uint8_t *)malloc(length);
+			data = malloc(length);
 			if (!data) {
 				goto error;
 			}
 
-            uprintf("recieving data length %i", length);
+            uprintf("[ps4debug] recieving data length %i", length);
 
 			// recv data
 			r = net_recv_data(fd, data, length, 1);
@@ -83,10 +83,8 @@ void *client_thread(void *arg) {
 		}
 
         // check crc if there is one
-        if(packet.crc) {
-            if(packet.crc != crc32(0, data, length)) {
-                goto error;
-            }
+        if(packet.crc != crc32(0, data, length)) {
+            //goto error;
         }
 
 		// handle the packet
@@ -101,54 +99,57 @@ void *client_thread(void *arg) {
 		if (r) {
 			goto error;
 		}
-
-        sceKernelUsleep(50000);
     }
 
 error:
-    uprintf("[ps4debug] client_thread error %i", fd);
+    uprintf("[ps4debug] client disconnected %i", fd);
     sceNetSocketClose(fd);
 
     return 0;
 }
 
 void start_server() {
+    struct sockaddr_in server;
+    int serv, fd, flag;
+
     uprintf("[ps4debug] server started");
 
-    int fd, flag;
-
-    // reset server
-    memset(&dbgsrv, 0, sizeof(struct debug_server));
-
     // server structure
-    dbgsrv.server.sin_len = sizeof(dbgsrv.server);
-    dbgsrv.server.sin_family = AF_INET;
-    dbgsrv.server.sin_addr.s_addr = SERVER_IN;
-    dbgsrv.server.sin_port = sceNetHtons(SERVER_PORT);
-    memset(dbgsrv.server.sin_zero, 0, sizeof(dbgsrv.server.sin_zero));
+    server.sin_len = sizeof(server);
+    server.sin_family = AF_INET;
+    server.sin_addr.s_addr = SERVER_IN;
+    server.sin_port = sceNetHtons(SERVER_PORT);
+    memset(server.sin_zero, 0, sizeof(server.sin_zero));
 
     // start up server
-    dbgsrv.servsock = sceNetSocket("dbgsock", AF_INET, SOCK_STREAM, 0);
-
-    sceNetBind(dbgsrv.servsock, (struct sockaddr *)&dbgsrv.server, sizeof(dbgsrv.server));
-
-    sceNetListen(dbgsrv.servsock, 16);
+    serv = sceNetSocket("dbgsock", AF_INET, SOCK_STREAM, 0);
 
     flag = 1;
-	sceNetSetsockopt(dbgsrv.servsock, SOL_SOCKET, SO_NBIO, (char *)&flag, sizeof(int));
+	sceNetSetsockopt(serv, SOL_SOCKET, SO_NBIO, (char *)&flag, sizeof(int));
+    
+    flag = 1;
+    sceNetSetsockopt(serv, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(int));
+
+    sceNetBind(serv, (struct sockaddr *)&server, sizeof(server));
+
+    sceNetListen(serv, 2);
 
     while(1) {
-        scePthreadYield();
+        //scePthreadYield();
 
-        fd = sceNetAccept(dbgsrv.servsock, NULL, NULL);
-        if(fd > -1) {
+        errno = NULL;
+        fd = sceNetAccept(serv, NULL, NULL);
+        if(fd > -1 && !errno) {
             uprintf("[ps4debug] accepted a client");
 
             flag = 1;
             sceNetSetsockopt(fd, SOL_SOCKET, SO_NBIO, (char *)&flag, sizeof(int));
             
-            ScePthread thread;
-            scePthreadCreate(&thread, NULL, client_thread, (void *)(uint64_t)fd, "dbgclient");
+            flag = 1;
+            sceNetSetsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(int));
+
+            // this will block until the client disconnects
+            handle_client(fd);
         }
 
         sceKernelSleep(1);

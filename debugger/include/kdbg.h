@@ -46,11 +46,9 @@ void sys_kern_rw(uint64_t address, void *data, uint64_t length, uint64_t write);
 
 // custom syscall 112
 #define SYS_CONSOLE_CMD_REBOOT       1
+#define SYS_CONSOLE_CMD_PRINT        2
 void sys_console_cmd(uint64_t cmd, void *data);
 
-// custom syscall 129
-void sys_console_print(char *str);
-
-#define uprintf(fmt, ...) { char buffer[256]; snprintf(buffer, 256, fmt, ##__VA_ARGS__); sys_console_print(buffer); }
+#define uprintf(fmt, ...) { char buffer[256]; snprintf(buffer, 256, fmt, ##__VA_ARGS__); sys_console_cmd(SYS_CONSOLE_CMD_PRINT, buffer); }
 
 #endif

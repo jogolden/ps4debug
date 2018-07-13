@@ -17,13 +17,6 @@
 #define SERVER_IN               IN_ADDR_ANY
 #define SERVER_PORT             733
 
-struct debug_server {
-    struct sockaddr_in server;
-    int servsock;
-};
-
-extern struct debug_server dbgsrv;
-
 // this will block
 void start_server();
 

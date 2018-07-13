@@ -36,6 +36,7 @@ int proc_read_handle(int fd, struct cmd_packet *packet) {
     rp = (struct cmd_proc_read_packet *)packet->data;
 
     if(rp) {
+        // TODO: fix this so we do not allocate too much memory
         data = malloc(rp->length);
         sys_proc_rw(rp->pid, rp->address, data, rp->length, 0);
         net_send_status(fd, CMD_SUCCESS);

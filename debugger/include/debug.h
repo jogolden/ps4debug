@@ -11,18 +11,11 @@
 #include "ptrace.h"
 
 #define MAX_BREAKPOINTS 10
-#define MAX_WATCHPOINTS 4
 
 struct debug_breakpoint {
     uint32_t valid;
     uint64_t address;
     uint8_t original;
-};
-
-struct debug_watchpoint {
-    uint32_t num;
-    uint64_t address;
-    uint32_t width; // 1/2/4/8
 };
 
 struct __reg64 {
@@ -70,9 +63,34 @@ struct __dbreg64 {
     /* Index 8-15: reserved */
 };
 
-extern int dbg_pid;
-extern struct debug_breakpoint breakpoints[MAX_BREAKPOINTS];
-extern struct debug_watchpoint watchpoints[MAX_WATCHPOINTS];
+#define	DBREG_DR7_DISABLE       0x00
+#define	DBREG_DR7_LOCAL_ENABLE  0x01
+#define	DBREG_DR7_GLOBAL_ENABLE 0x02
+
+#define	DBREG_DR7_LEN_1     0x00	/* 1 byte length */
+#define	DBREG_DR7_LEN_2     0x01
+#define	DBREG_DR7_LEN_4     0x03
+#define	DBREG_DR7_LEN_8     0x02
+
+#define	DBREG_DR7_EXEC      0x00	/* break on execute       */
+#define	DBREG_DR7_WRONLY    0x01	/* break on write         */
+#define	DBREG_DR7_RDWR      0x03	/* break on read or write */
+
+#define	DBREG_DR7_MASK(i) ((uint64_t)(0xf) << ((i) * 4 + 16) | 0x3 << (i) * 2)
+#define	DBREG_DR7_SET(i, len, access, enable) ((uint64_t)((len) << 2 | (access)) << ((i) * 4 + 16) | (enable) << (i) * 2)
+#define	DBREG_DR7_GD        0x2000
+#define	DBREG_DR7_ENABLED(d, i)	(((d) & 0x3 << (i) * 2) != 0)
+#define	DBREG_DR7_ACCESS(d, i)	((d) >> ((i) * 4 + 16) & 0x3)
+#define	DBREG_DR7_LEN(d, i)	((d) >> ((i) * 4 + 18) & 0x3)
+
+#define	DBREG_DRX(d,x) ((d)->dr[(x)]) /* reference dr0 - dr7 by register number */
+
+struct debug_context {
+    int pid;
+    struct debug_breakpoint breakpoints[MAX_BREAKPOINTS];
+};
+
+extern struct debug_context dbgctx;
 
 int debug_attach_handle(int fd, struct cmd_packet *packet);
 int debug_detach_handle(int fd, struct cmd_packet *packet);
@@ -87,11 +105,6 @@ int debug_getdbregs_handle(int fd, struct cmd_packet *packet);
 int debug_setregs_handle(int fd, struct cmd_packet *packet);
 int debug_setfregs_handle(int fd, struct cmd_packet *packet);
 int debug_setdbregs_handle(int fd, struct cmd_packet *packet);
-
-// todo: registers
-
-void *debug_monitor_thread(void *arg);
-void start_debug();
 
 int debug_handle(int fd, struct cmd_packet *packet);
 

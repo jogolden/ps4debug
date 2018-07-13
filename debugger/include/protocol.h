@@ -33,6 +33,8 @@
 #define CMD_DEBUG_SETFREGS      0xBDBB000B
 #define CMD_DEBUG_GETDBGREGS    0xBDBB000C
 #define CMD_DEBUG_SETDBGREGS    0xBDBB000D
+#define CMD_DEBUG_START_RUN		0xBDBB000E
+#define CMD_DEBUG_STOP_RUN		0xBDBB000F
 
 #define CMD_KERN_BASE	    	0xBDCC0001
 #define CMD_KERN_READ           0xBDCC0002
@@ -61,7 +63,7 @@ struct cmd_packet {
 	uint32_t crc;
 	uint32_t datalen;
 	// (field not actually part of packet, comes after)
-	uint8_t *data;
+	void *data;
 } __attribute__((packed));
 #define CMD_PACKET_SIZE 16
 

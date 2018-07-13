@@ -4,8 +4,6 @@
 
 #include "hooks.h"
 
-struct sysent *sysents;
-
 int sys_proc_list(struct thread *td, struct sys_proc_list_args *uap) {
     struct proc *p;
     int num;
@@ -145,23 +143,17 @@ int sys_console_cmd(struct thread *td, struct sys_console_cmd_args *uap) {
         case SYS_CONSOLE_CMD_REBOOT:
             kern_reboot(0);
             break;
-    }
-
-    return 0;
-}
-
-int sys_console_print(struct thread *td, struct sys_console_print_args *uap) {
-    if(uap->str) {
-        printf("%s\n", uap->str);
+        case SYS_CONSOLE_CMD_PRINT:
+            if(uap->data) {
+                printf("%s\n", uap->data);
+            }
+            break;
     }
 
     return 0;
 }
 
 int install_hooks() {
-    uint64_t kernbase = get_kbase();
-    sysents = (void *)(kernbase + __sysent);
-
     cpu_disable_wp();
 
     struct sysent *_proc_list = &sysents[107];
@@ -199,12 +191,6 @@ int install_hooks() {
     _console_cmd->sy_narg = 5;
     _console_cmd->sy_call = sys_console_cmd;
     _console_cmd->sy_thrcnt = 1;
-
-    struct sysent *_console_print = &sysents[129];
-    memset(_console_print, 0, sizeof(struct sysent));
-    _console_print->sy_narg = 5;
-    _console_print->sy_call = sys_console_print;
-    _console_print->sy_thrcnt = 1;
 
     cpu_enable_wp();
 

@@ -5,7 +5,7 @@ ENTRY(_start)
 
 PHDRS
 {
-	headers PT_PHDR PHDRS;
+	headers PT_LOAD PHDRS;
 	text PT_LOAD;
 	data PT_LOAD;
 	bss PT_LOAD;

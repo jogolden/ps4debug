@@ -38,8 +38,3 @@ void sys_kern_rw(uint64_t address, void *data, uint64_t length, uint64_t write) 
 void sys_console_cmd(uint64_t cmd, void *data) {
     syscall(112, cmd, data);
 }
-
-// custom syscall 129
-void sys_console_print(char *str) {
-    syscall(129, str);
-}
