@@ -38,6 +38,9 @@ void kpatches() {
 	// patch ptrace, thanks 2much4u
 	*(uint8_t *)(kernbase + 0x30D9AA) = 0xEB;
 
+	// remove all these bullshit checks from ptrace, by golden
+	memcpy((void *)(kernbase + 0x30DE01), "\xE9\xD0\x00\x00\x00", 5);
+
 	// patch ASLR, thanks 2much4u
 	*(uint16_t *)(kernbase + 0x194875) = 0x9090;
 
