@@ -6,29 +6,6 @@
 
 struct debug_context dbgctx;
 
-int add_breakpt(struct debug_breakpoint *breakpt) {
-    for(int i = 0; i < MAX_BREAKPOINTS; i++) {
-        if(!dbgctx.breakpoints[i].valid) {
-            memcpy(&dbgctx.breakpoints[i], breakpt, sizeof(struct debug_breakpoint));
-            dbgctx.breakpoints[i].valid = 0;
-            return 0;
-        }
-    }
-
-    return 1;
-}
-
-int remove_breakpt(struct debug_breakpoint *breakpt) {
-    for(int i = 0; i < MAX_BREAKPOINTS; i++) {
-        if(dbgctx.breakpoints[i].address == breakpt->address) {
-            dbgctx.breakpoints[i].valid = 0;
-            return 0;
-        }
-    }
-
-    return 1;
-}
-
 int debug_attach_handle(int fd, struct cmd_packet *packet) {
     struct cmd_debug_attach_packet *ap;
 
@@ -64,7 +41,6 @@ int debug_detach_handle(int fd, struct cmd_packet *packet) {
 
 int debug_breakpt_handle(int fd, struct cmd_packet *packet) {
     struct cmd_debug_breakpt_packet *bp;
-    struct debug_breakpoint dbgbp;
     uint8_t int3;
     uint8_t original;
 
@@ -80,30 +56,26 @@ int debug_breakpt_handle(int fd, struct cmd_packet *packet) {
         return 1;
     }
 
-    dbgbp.valid = 1;
-    dbgbp.address = bp->address;
+    if(bp->index < 0 && bp->index >= MAX_BREAKPOINTS) {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
 
-    if(bp->remove) {
-        if(remove_breakpt(&dbgbp)) {
-            net_send_status(fd, CMD_ERROR);
-            return 0;
-        }
-    } else {
-        // read original byte
-        // write 0xCC to process
-        // call wait4 on process
-        // wait until trap -> debug_monitor_thread
-        
-        sys_proc_rw(dbgctx.pid, bp->address, &original, 1, 0);
-        dbgbp.original = original;
+    struct debug_breakpoint *breakpoint = &dbgctx.breakpoints[bp->index];
+
+    if(bp->enabled) {
+        breakpoint->enabled = 1;
+        breakpoint->address = bp->address;
+
+        sys_proc_rw(dbgctx.pid, breakpoint->address, &original, 1, 0);
+        breakpoint->original = original;
 
         int3 = 0xCC;
-        sys_proc_rw(dbgctx.pid, bp->address, &int3, 1, 1);
-
-        if(add_breakpt(&dbgbp)) {
-            net_send_status(fd, CMD_ERROR);
-            return 0;
-        }
+        sys_proc_rw(dbgctx.pid, breakpoint->address, &int3, 1, 1);
+    } else {
+        breakpoint->enabled = 0;
+        breakpoint->address = NULL;
+        sys_proc_rw(dbgctx.pid, breakpoint->address, &breakpoint->original, 1, 0);
     }
 
     net_send_status(fd, CMD_SUCCESS);
@@ -121,11 +93,12 @@ int debug_watchpt_handle(int fd, struct cmd_packet *packet) {
         return 1;
     }
 
-    // TODO: use debug registers
     if(!wp) {
         net_send_status(fd, CMD_SUCCESS);
         return 1;
     }
+
+    // todo: change the debug registers accordingly
 
     net_send_status(fd, CMD_SUCCESS);
 

@@ -125,17 +125,20 @@ struct cmd_debug_attach_packet {
 #define CMD_DEBUG_ATTACH_PACKET_SIZE 4
 
 struct cmd_debug_breakpt_packet {
-	uint32_t remove;
+	uint32_t index;
+	uint32_t enabled;
 	uint64_t address;
 } __attribute__((packed));
-#define CMD_DEBUG_BREAKPT_PACKET_SIZE 12
+#define CMD_DEBUG_BREAKPT_PACKET_SIZE 16
 
 struct cmd_debug_watchpt_packet {
-	uint32_t remove;
-	uint32_t width;
+	uint32_t index;
+	uint32_t enabled;
+	uint32_t length;
+	uint32_t breaktype;
 	uint64_t address;
 } __attribute__((packed));
-#define CMD_DEBUG_WATCHPT_PACKET_SIZE 16
+#define CMD_DEBUG_WATCHPT_PACKET_SIZE 24
 
 struct cmd_debug_stopthr_packet {
 	uint32_t lwpid;

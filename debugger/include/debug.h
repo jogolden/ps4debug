@@ -13,7 +13,7 @@
 #define MAX_BREAKPOINTS 10
 
 struct debug_breakpoint {
-    uint32_t valid;
+    uint32_t enabled;
     uint64_t address;
     uint8_t original;
 };
