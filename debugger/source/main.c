@@ -12,6 +12,11 @@ int _main(void) {
 	initLibc();
 	initPthread();
 	initNetwork();
+	initSysUtil();
+
+	// just a little notify
+	sceSysUtilSendSystemNotificationWithText(222, "ps4debug loaded!");
+	sceSysUtilSendSystemNotificationWithText(222, "golden <3");
 	
 	// this blocks
 	start_server();

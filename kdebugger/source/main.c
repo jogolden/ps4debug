@@ -53,9 +53,7 @@ void _main(void) {
 	jailbreak();
 	kpatches();
 
-	cpu_disable_wp();
 	*disable_console_output = 0;
-	cpu_enable_wp();
 
 	printf("[ps4debug] kdebugger loaded\n");
 	printf("[ps4debug] kernel base 0x%llX\n", get_kbase());
