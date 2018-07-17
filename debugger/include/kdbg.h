@@ -10,14 +10,13 @@
 
 // custom syscall 107
 struct proc_list_entry {
-	char p_comm[32];
-	int pid;
-} __attribute__ ((packed));
-void sys_proc_list(struct proc_list_entry *procs, uint64_t * num);
+    char p_comm[32];
+    int pid;
+}  __attribute__((packed));
+void sys_proc_list(struct proc_list_entry *procs, uint64_t *num);
 
 // custom syscall 108
-void sys_proc_rw(uint64_t pid, uint64_t address, void *data, uint64_t length,
-    uint64_t write);
+void sys_proc_rw(uint64_t pid, uint64_t address, void *data, uint64_t length, uint64_t write);
 
 // custom syscall 109
 #define SYS_PROC_ALLOC      1
@@ -32,19 +31,18 @@ struct proc_vm_map_entry {
 	uint64_t end;
 	uint64_t offset;
 	uint16_t prot;
-} __attribute__ ((packed));
+} __attribute__((packed));
 struct sys_proc_vm_map_args {
-	struct proc_vm_map_entry *maps;
-	uint64_t num;
-} __attribute__ ((packed));
+    struct proc_vm_map_entry *maps;
+    uint64_t num;
+} __attribute__((packed));
 void sys_proc_cmd(uint64_t pid, uint64_t cmd, void *data);
 
 // custom syscall 110
-void sys_kern_base(uint64_t * kbase);
+void sys_kern_base(uint64_t *kbase);
 
 // custom syscall 111
-void sys_kern_rw(uint64_t address, void *data, uint64_t length,
-    uint64_t write);
+void sys_kern_rw(uint64_t address, void *data, uint64_t length, uint64_t write);
 
 // custom syscall 112
 #define SYS_CONSOLE_CMD_REBOOT       1

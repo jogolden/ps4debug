@@ -10,23 +10,23 @@
 
 // custom syscall 107
 struct proc_list_entry {
-	char p_comm[32];
-	int pid;
-} __attribute__ ((packed));
+    char p_comm[32];
+    int pid;
+}  __attribute__((packed));
 
 struct sys_proc_list_args {
-	struct proc_list_entry *procs;
-	uint64_t *num;
-} __attribute__ ((packed));
+    struct proc_list_entry *procs;
+    uint64_t *num;
+} __attribute__((packed));
 int sys_proc_list(struct thread *td, struct sys_proc_list_args *uap);
 
 // custom syscall 108
 struct sys_proc_rw_args {
-	uint64_t pid;
-	uint64_t address;
-	void *data;
-	uint64_t length;
-	uint64_t write;
+    uint64_t pid;
+    uint64_t address;
+    void *data;
+    uint64_t length;
+    uint64_t write;
 };
 int sys_proc_rw(struct thread *td, struct sys_proc_rw_args *uap);
 
@@ -38,30 +38,30 @@ int sys_proc_rw(struct thread *td, struct sys_proc_rw_args *uap);
 #define SYS_PROC_INSTALL    5
 #define SYS_PROC_CALL       6
 struct sys_proc_vm_map_args {
-	struct proc_vm_map_entry *maps;
-	uint64_t num;
-} __attribute__ ((packed));
+    struct proc_vm_map_entry *maps;
+    uint64_t num;
+} __attribute__((packed));
 
 struct sys_proc_cmd_args {
-	uint64_t pid;
-	uint64_t cmd;
-	void *data;
-} __attribute__ ((packed));
+    uint64_t pid;
+    uint64_t cmd;
+    void *data;
+} __attribute__((packed));
 int sys_proc_cmd(struct thread *td, struct sys_proc_cmd_args *uap);
 
 // custom syscall 110
 struct sys_kern_base_args {
-	uint64_t *kbase;
-} __attribute__ ((packed));
+    uint64_t *kbase;
+} __attribute__((packed));
 int sys_kern_base(struct thread *td, struct sys_kern_base_args *uap);
 
 // custom syscall 111
 struct sys_kern_rw_args {
-	uint64_t address;
-	void *data;
-	uint64_t length;
-	uint64_t write;
-} __attribute__ ((packed));
+    uint64_t address;
+    void *data;
+    uint64_t length;
+    uint64_t write;
+} __attribute__((packed));
 int sys_kern_rw(struct thread *td, struct sys_kern_rw_args *uap);
 
 // custom syscall 112
@@ -69,9 +69,9 @@ int sys_kern_rw(struct thread *td, struct sys_kern_rw_args *uap);
 #define SYS_CONSOLE_CMD_PRINT        2
 #define SYS_CONSOLE_CMD_JAILBREAK    3
 struct sys_console_cmd_args {
-	uint64_t cmd;
-	void *data;
-} __attribute__ ((packed));
+    uint64_t cmd;
+    void *data;
+} __attribute__((packed));
 int sys_console_cmd(struct thread *td, struct sys_console_cmd_args *uap);
 
 int install_hooks();
