@@ -17,8 +17,11 @@ int _main(void) {
 	// just a little notify
 	sceSysUtilSendSystemNotificationWithText(222, "ps4debug loaded!");
 	sceSysUtilSendSystemNotificationWithText(222, "golden <3");
-	
-	// this blocks
+
+	// jailbreak current thread
+	sys_console_cmd(SYS_CONSOLE_CMD_JAILBREAK, NULL);
+
+	// start the server, this will block
 	start_server();
 
 	return 0;

@@ -13,55 +13,111 @@
 #define MAX_BREAKPOINTS 10
 
 struct debug_breakpoint {
-    uint32_t enabled;
-    uint64_t address;
-    uint8_t original;
+	uint32_t enabled;
+	uint64_t address;
+	uint8_t original;
 };
 
 struct __reg64 {
-    int64_t	r_r15;
-    int64_t	r_r14;
-    int64_t	r_r13;
-    int64_t	r_r12;
-    int64_t	r_r11;
-    int64_t	r_r10;
-    int64_t	r_r9;
-    int64_t	r_r8;
-    int64_t	r_rdi;
-    int64_t	r_rsi;
-    int64_t	r_rbp;
-    int64_t	r_rbx;
-    int64_t	r_rdx;
-    int64_t	r_rcx;
-    int64_t	r_rax;
+<<<<<<< HEAD
+<<<<<<< HEAD
+	uint64_t r_r15;
+	uint64_t r_r14;
+	uint64_t r_r13;
+	uint64_t r_r12;
+	uint64_t r_r11;
+	uint64_t r_r10;
+	uint64_t r_r9;
+	uint64_t r_r8;
+	uint64_t r_rdi;
+	uint64_t r_rsi;
+	uint64_t r_rbp;
+	uint64_t r_rbx;
+	uint64_t r_rdx;
+	uint64_t r_rcx;
+	uint64_t r_rax;
+	uint32_t r_trapno;
+	uint16_t r_fs;
+	uint16_t r_gs;
+	uint32_t r_err;
+	uint16_t r_es;
+	uint16_t r_ds;
+	uint64_t r_rip;
+	uint64_t r_cs;
+	uint64_t r_rflags;
+	uint64_t r_rsp;
+	uint64_t r_ss;
+=======
+=======
+>>>>>>> cbcc9ea97c51653385f543e30e1a30abbc253df7
+    uint64_t r_r15;
+    uint64_t r_r14;
+    uint64_t r_r13;
+    uint64_t r_r12;
+    uint64_t r_r11;
+    uint64_t r_r10;
+    uint64_t r_r9;
+    uint64_t r_r8;
+    uint64_t r_rdi;
+    uint64_t r_rsi;
+    uint64_t r_rbp;
+    uint64_t r_rbx;
+    uint64_t r_rdx;
+    uint64_t r_rcx;
+    uint64_t r_rax;
     uint32_t r_trapno;
     uint16_t r_fs;
     uint16_t r_gs;
     uint32_t r_err;
     uint16_t r_es;
     uint16_t r_ds;
-    int64_t	r_rip;
-    int64_t	r_cs;
-    int64_t	r_rflags;
-    int64_t	r_rsp;
-    int64_t	r_ss;
+    uint64_t r_rip;
+    uint64_t r_cs;
+    uint64_t r_rflags;
+    uint64_t r_rsp;
+    uint64_t r_ss;
+<<<<<<< HEAD
+>>>>>>> cbcc9ea97c51653385f543e30e1a30abbc253df7
+=======
+>>>>>>> cbcc9ea97c51653385f543e30e1a30abbc253df7
 };
 
 struct __fpreg64 {
-    uint64_t fpr_env[4];
-    uint8_t	fpr_acc[8][16];
-    uint8_t	fpr_xacc[16][16];
-    uint64_t fpr_spare[12];
+	uint64_t fpr_env[4];
+	uint8_t fpr_acc[8][16];
+	uint8_t fpr_xacc[16][16];
+	uint64_t fpr_spare[12];
 };
 
 struct __dbreg64 {
-    uint64_t dr[16];	/* debug registers */
-    /* Index 0-3: debug address registers */
-    /* Index 4-5: reserved */
-    /* Index 6: debug status */
-    /* Index 7: debug control */
-    /* Index 8-15: reserved */
+	uint64_t dr[16];	/* debug registers */
+	/* Index 0-3: debug address registers */
+	/* Index 4-5: reserved */
+	/* Index 6: debug status */
+	/* Index 7: debug control */
+	/* Index 8-15: reserved */
 };
+
+struct debug_interrupt_packet {
+	uint32_t lwpid;
+	uint32_t status;
+	char tdname[40];
+	struct __reg64 reg64;
+<<<<<<< HEAD
+<<<<<<< HEAD
+	struct __fpreg64 fpreg64;
+	struct __dbreg64 dbreg64;
+} __attribute__ ((packed));
+=======
+    struct __fpreg64 fpreg64;
+    struct __dbreg64 dbreg64;
+} __attribute__((packed));
+>>>>>>> cbcc9ea97c51653385f543e30e1a30abbc253df7
+=======
+    struct __fpreg64 fpreg64;
+    struct __dbreg64 dbreg64;
+} __attribute__((packed));
+>>>>>>> cbcc9ea97c51653385f543e30e1a30abbc253df7
 
 #define	DBREG_DR7_DISABLE       0x00
 #define	DBREG_DR7_LOCAL_ENABLE  0x01
@@ -83,11 +139,15 @@ struct __dbreg64 {
 #define	DBREG_DR7_ACCESS(d, i)	((d) >> ((i) * 4 + 16) & 0x3)
 #define	DBREG_DR7_LEN(d, i)	((d) >> ((i) * 4 + 18) & 0x3)
 
-#define	DBREG_DRX(d,x) ((d)->dr[(x)]) /* reference dr0 - dr7 by register number */
+#define	DBREG_DRX(d,x) ((d)->dr[(x)])	/* reference dr0 - dr7 by register number */
+
+#define DBG_PORT 755
 
 struct debug_context {
-    int pid;
-    struct debug_breakpoint breakpoints[MAX_BREAKPOINTS];
+	int pid;
+	struct sockaddr_in client;
+	int clientfd;
+	struct debug_breakpoint breakpoints[MAX_BREAKPOINTS];
 };
 
 extern struct debug_context dbgctx;
@@ -100,11 +160,20 @@ int debug_threads_handle(int fd, struct cmd_packet *packet);
 int debug_stopthr_handle(int fd, struct cmd_packet *packet);
 int debug_resumethr_handle(int fd, struct cmd_packet *packet);
 int debug_getregs_handle(int fd, struct cmd_packet *packet);
-int debug_getfregs_handle(int fd, struct cmd_packet *packet);
-int debug_getdbregs_handle(int fd, struct cmd_packet *packet);
 int debug_setregs_handle(int fd, struct cmd_packet *packet);
+int debug_getfregs_handle(int fd, struct cmd_packet *packet);
 int debug_setfregs_handle(int fd, struct cmd_packet *packet);
+int debug_getdbregs_handle(int fd, struct cmd_packet *packet);
 int debug_setdbregs_handle(int fd, struct cmd_packet *packet);
+int debug_start_run_handle(int fd, struct cmd_packet *packet);
+<<<<<<< HEAD
+<<<<<<< HEAD
+
+void debug_cleanup();
+=======
+>>>>>>> cbcc9ea97c51653385f543e30e1a30abbc253df7
+=======
+>>>>>>> cbcc9ea97c51653385f543e30e1a30abbc253df7
 
 int debug_handle(int fd, struct cmd_packet *packet);
 

@@ -15,7 +15,7 @@
 #include "console.h"
 
 #define SERVER_IN               IN_ADDR_ANY
-#define SERVER_PORT             733
+#define SERVER_PORT             744
 
 // this will block
 void start_server();
