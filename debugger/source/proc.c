@@ -15,7 +15,6 @@ int proc_list_handle(int fd, struct cmd_packet *packet) {
         length = sizeof(struct proc_list_entry) * num;
         data = malloc(length);
         sys_proc_list(data, &num);
-
         net_send_status(fd, CMD_SUCCESS);
         net_send_data(fd, &num, sizeof(uint32_t));
         net_send_data(fd, data, length);
@@ -32,15 +31,43 @@ int proc_list_handle(int fd, struct cmd_packet *packet) {
 int proc_read_handle(int fd, struct cmd_packet *packet) {
     struct cmd_proc_read_packet *rp;
     void *data;
+    uint64_t left;
+    uint64_t offset;
 
     rp = (struct cmd_proc_read_packet *)packet->data;
 
     if(rp) {
-        // TODO: fix this so we do not allocate too much memory
-        data = malloc(rp->length);
-        sys_proc_rw(rp->pid, rp->address, data, rp->length, 0);
+        // allocate a small buffer
+        data = malloc(NET_MAX_LENGTH);
+        if(!data) {
+            net_send_status(fd, CMD_DATA_NULL);
+            return 1;
+        }
+        
         net_send_status(fd, CMD_SUCCESS);
-        net_send_data(fd, data, rp->length);
+
+        left = rp->length;
+        offset = rp->address;
+
+        // send by chunks
+        while(left > 0) {
+            memset(data, NULL, NET_MAX_LENGTH);
+
+            if(left > NET_MAX_LENGTH) {
+                sys_proc_rw(rp->pid, offset, data, NET_MAX_LENGTH, 0);
+                net_send_data(fd, data, NET_MAX_LENGTH);
+
+                offset += NET_MAX_LENGTH;
+                left -= NET_MAX_LENGTH;
+            } else {
+                sys_proc_rw(rp->pid, offset, data, left, 0);
+                net_send_data(fd, data, left);
+
+                offset += left;
+                left -= left;
+            }
+        }
+
         free(data);
 
         return 0;
@@ -54,14 +81,41 @@ int proc_read_handle(int fd, struct cmd_packet *packet) {
 int proc_write_handle(int fd, struct cmd_packet *packet) {
     struct cmd_proc_write_packet *wp;
     void *data;
+    uint64_t left;
+    uint64_t offset;
 
     wp = (struct cmd_proc_write_packet *)packet->data;
 
     if(wp) {
-        data = malloc(wp->length);
-        net_recv_data(fd, data, wp->length, 1);
-        sys_proc_rw(wp->pid, wp->address, data, wp->length, 1);
+        // only allocate a small buffer
+        data = malloc(NET_MAX_LENGTH);
+        if(!data) {
+            net_send_status(fd, CMD_DATA_NULL);
+            return 1;
+        }
+
+        left = wp->length;
+        offset = wp->address;
+
+        // write in chunks
+        while(left > 0) {
+            if(left > NET_MAX_LENGTH) {
+                net_recv_data(fd, data, NET_MAX_LENGTH, 1);
+                sys_proc_rw(wp->pid, offset, data, NET_MAX_LENGTH, 1);
+
+                offset += NET_MAX_LENGTH;
+                left -= NET_MAX_LENGTH;
+            } else {
+                net_recv_data(fd, data, left, 1);
+                sys_proc_rw(wp->pid, offset, data, left, 1);
+
+                offset += left;
+                left -= left;
+            }
+        }
+
         net_send_status(fd, CMD_SUCCESS);
+
         free(data);
 
         return 0;

@@ -24,39 +24,53 @@ int cmd_handler(int fd, struct cmd_packet *packet) {
     return 0;
 }
 
-int check_debug_interrupt(int fd) {
-    uint8_t lwpinfo[512]; // I allocate more since I actually dont know the size
+int check_debug_interrupt() {
+    char lwpinfo[0x98];
+    struct debug_interrupt_packet *resp;
     int status;
+    int signal;
+    int r;
 
+    // todo: more checks
     if(wait4(dbgctx.pid, &status, WNOHANG, NULL)) {
-        if(WSTOPSIG(status) == SIGSTOP) {
+        signal = WSTOPSIG(status);
+
+        uprintf("[ps4debug] check_debug_interrupt signal %i", signal);
+
+        if(signal == SIGSTOP) {
+            uprintf("[ps4debug] passed on a SIGSTOP");
             return 0;
         }
-
-        uprintf("wait4 caught status 0x%X signal %i", status, WSTOPSIG(status));
-
-        struct debug_interrupt_packet *resp = (struct debug_interrupt_packet *)malloc(sizeof(struct debug_interrupt_packet));
+        
+        resp = (struct debug_interrupt_packet *)malloc(DEBUG_INTERRUPT_PACKET_SIZE);
         if(!resp) {
+            uprintf("[ps4debug] could not allocate interrupt response");
             return 1;
         }
 
-        // todo: actually map this structure lol
+        // todo: make structure
         ptrace(PT_LWPINFO, dbgctx.pid, lwpinfo, 0x98);
 
-        memset(resp, NULL, sizeof(struct debug_interrupt_packet));
+        memset(resp, NULL, DEBUG_INTERRUPT_PACKET_SIZE);
 
-        resp->lwpid = *(uint32_t *)lwpinfo;
+        char *cast = (char *)lwpinfo;
+        resp->lwpid = *(uint32_t *)cast;
         resp->status = status;
         
-        memcpy(resp->tdname, (void *)(lwpinfo + 0x80), 40);
+        memcpy(resp->tdname, (char *)(lwpinfo + 0x80), sizeof(resp->tdname));
 
         ptrace(PT_GETREGS, resp->lwpid, &resp->reg64, NULL);
         //ptrace(PT_GETFPREGS, resp->lwpid, &resp->fpreg64, NULL);
         //ptrace(PT_GETDBREGS, resp->lwpid, &resp->dbreg64, NULL);
         
-        net_send_data(dbgctx.clientfd, resp, sizeof(struct debug_interrupt_packet));
+        r = net_send_data(dbgctx.clientfd, resp, DEBUG_INTERRUPT_PACKET_SIZE);
+        if(r != DEBUG_INTERRUPT_PACKET_SIZE) {
+            uprintf("[ps4debug] net_send_data failed %i %i", r, errno);
+        }
 
         free(resp);
+
+        uprintf("[ps4debug] check_debug_interrupt interrupt data sent");
     }
 
     return 0;
@@ -64,6 +78,7 @@ int check_debug_interrupt(int fd) {
 
 int handle_client(int fd, struct sockaddr_in *client) {
     struct cmd_packet packet;
+    uint32_t rsize;
     uint32_t length;
     void *data;
     int r;
@@ -72,30 +87,50 @@ int handle_client(int fd, struct sockaddr_in *client) {
     dbgctx.pid = dbgctx.clientfd = -1;
     memcpy(&dbgctx.client, client, sizeof(struct sockaddr_in));
 
+    // setup time val for select
+    struct timeval tv;
+    memset(&tv, NULL, sizeof(tv));
+    tv.tv_usec = 2000;
+
     while(1) {
-        sceKernelUsleep(30000);
-        
-        if(dbgctx.pid != -1 && dbgctx.clientfd > 0) {
-            if(check_debug_interrupt(fd)) {
+        // if we have a valid debugger context then check for interrupt
+        // this does not block, as wait is called with option WNOHANG
+        if(dbgctx.pid != -1 && dbgctx.clientfd != -1) {
+            if(check_debug_interrupt()) {
                 goto error;
             }
         }
 
+        // do a select
+        fd_set sfd;
+        FD_ZERO(&sfd);
+        FD_SET(fd, &sfd);
+        errno = NULL;
+        net_select(FD_SETSIZE, &sfd, NULL, NULL, &tv);
 
-        memset(&packet, NULL, CMD_PACKET_SIZE);
-        r = net_recv_data(fd, &packet, CMD_PACKET_SIZE, 0);
+        // check if we can recieve
+        if(FD_ISSET(fd, &sfd)) {
+            // zero out
+            memset(&packet, NULL, CMD_PACKET_SIZE);
 
-        // if we didnt recieve anything just try again
-        if (!r) {
+            // recieve our data
+            rsize = net_recv_data(fd, &packet, CMD_PACKET_SIZE, 0);
+
+            // if we didnt recieve hmm
+            if (rsize <= 0) {
+                goto error;
+            }
+
             // check if disconnected
             if (errno == ECONNRESET) {
                 goto error;
             }
+        } else {
+            sceKernelUsleep(40000);
+            continue;
+        }
 
-			continue;
-		}
-
-        uprintf("[ps4debug] client packet");
+        uprintf("[ps4debug] client packet recieved");
 
         // invalid packet
 		if (packet.magic != PACKET_MAGIC) {
@@ -104,8 +139,8 @@ int handle_client(int fd, struct sockaddr_in *client) {
 		}
 
 		// mismatch received size
-		if (r != CMD_PACKET_SIZE) {
-            uprintf("[ps4debug] invalid recieve size %i!", r);
+		if (rsize != CMD_PACKET_SIZE) {
+            uprintf("[ps4debug] invalid recieve size %i!", rsize);
 			continue;
 		}
 
@@ -196,15 +231,13 @@ void start_server() {
         fd = sceNetAccept(serv, (struct sockaddr *)&client, &len);
         if(fd > -1 && !errno) {
             uprintf("[ps4debug] accepted a client");
-            //uprintf("data sizes: %X %X %X", sizeof(struct __reg64), sizeof(struct __fpreg64), sizeof(struct __dbreg64));
 
             flag = 1;
             sceNetSetsockopt(fd, SOL_SOCKET, SO_NBIO, (char *)&flag, sizeof(int));
             
             flag = 1;
             sceNetSetsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(int));
-
-            // this will block until the client disconnects
+            
             handle_client(fd, &client);
         }
 

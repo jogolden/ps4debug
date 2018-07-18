@@ -4,6 +4,10 @@
 
 #include "net.h"
 
+int net_select(int fd, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout) {
+	return syscall(93, fd, readfds, writefds, exceptfds, timeout);
+}
+
 int net_send_data(int fd, void *data, int length) {
     int left = length;
 	int offset = 0;
@@ -19,7 +23,7 @@ int net_send_data(int fd, void *data, int length) {
 		}
 
 		if (sent <= 0 && errno && errno != EWOULDBLOCK) {
-			return 0;
+			return sent;
 		} else {
 			offset += sent;
 			left -= sent;
@@ -48,7 +52,7 @@ int net_recv_data(int fd, void *data, int length, int force) {
 		if (recv <= 0) {
 			if (force) {
 				if(errno && errno != EWOULDBLOCK) {
-					return 0;
+					return recv;
 				}
 			} else {
 				return offset;

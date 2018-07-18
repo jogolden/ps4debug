@@ -15,8 +15,6 @@ int load_payload(struct proc *p) {
     struct vmspace *vm = p->p_vmspace;
 	struct vm_map *map = &vm->vm_map;
 
-	// TODO: error checking and dynamic allocation
-
 	vm_map_lock(map);
 	r = vm_map_insert(map, NULL, NULL, 0x926200000, 0x926200000 + 0x300000, VM_PROT_ALL, VM_PROT_ALL, 0);
 	vm_map_unlock(map);
@@ -58,16 +56,6 @@ int rpc_proc_load(struct proc *p, uint64_t address) {
 	if (r) {
 		goto error;
 	}
-
-	// patch suword_lwpid
-	// has a check to see if child_tid/parent_tid is in kernel memory, and it in so patch it
-	uint64_t kernbase = get_kbase();
-    cpu_disable_wp();
-	uint16_t *suword_lwpid1 = (uint16_t *)(kernbase + 0x1EA9D2);
-	uint16_t *suword_lwpid2 = (uint16_t *)(kernbase + 0x1EA9E1);
-	*suword_lwpid1 = 0x9090;
-	*suword_lwpid2 = 0x9090;
-    cpu_enable_wp();
 
 	// donor thread
 	struct thread *thr = TAILQ_FIRST(&p->p_threads);
@@ -153,6 +141,7 @@ int rpc_proc_load(struct proc *p, uint64_t address) {
 	}
 
 	// execute loader
+	// note: do not enter in the pid information as it expects it to be stored in userland
 	uint64_t ldrentryaddr = (uint64_t)rpcldraddr + *(uint64_t *)(rpcldr + 4);
 	r = create_thread(thr, NULL, (void *)ldrentryaddr, NULL, stackaddr, stacksize, NULL, NULL, NULL, 0, NULL);
 	if (r) {

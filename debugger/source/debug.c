@@ -16,7 +16,7 @@ int connect_client() {
     memset(server.sin_zero, NULL, sizeof(server.sin_zero));
 
     dbgctx.clientfd = sceNetSocket("dbgclient", AF_INET, SOCK_STREAM, 0);
-    if(dbgctx.clientfd < 0) {
+    if(dbgctx.clientfd <= 0) {
         return 1;
     }
 
@@ -36,8 +36,20 @@ int debug_attach_handle(int fd, struct cmd_packet *packet) {
     ap = (struct cmd_debug_attach_packet *)packet->data;
 
     if(ap) {
-        ptrace(PT_ATTACH, ap->pid, NULL, NULL);
-        ptrace(PT_CONTINUE, ap->pid, (void *)1, NULL);
+        r = ptrace(PT_ATTACH, ap->pid, NULL, NULL);
+        if(r) {
+            uprintf("[ps4debug] ptrace PT_ATTACH failed");
+            net_send_status(fd, CMD_ERROR);
+            return 1;    
+        }
+
+        //wait4(ap->pid, NULL, NULL, NULL);
+        r = ptrace(PT_CONTINUE, ap->pid, (void *)1, NULL);
+        if(r) {
+            uprintf("[ps4debug] ptrace PT_CONTINUE failed");
+            net_send_status(fd, CMD_ERROR);
+            return 1;    
+        }
 
         dbgctx.pid = ap->pid;
         memset(dbgctx.breakpoints, NULL, sizeof(dbgctx.breakpoints));
@@ -46,9 +58,11 @@ int debug_attach_handle(int fd, struct cmd_packet *packet) {
         r = connect_client();
         if(r) {
             uprintf("[ps4debug] could not connect to server");
-            net_send_status(fd, CMD_SUCCESS);
+            net_send_status(fd, CMD_ERROR);
             return 1;    
         }
+
+        uprintf("[ps4debug] debugger is attached");
 
         net_send_status(fd, CMD_SUCCESS);
 
@@ -153,7 +167,7 @@ int debug_watchpt_handle(int fd, struct cmd_packet *packet) {
         return 1;
     }
 
-    // setup the breakpoint
+    // setup the watchpoint
     dbreg64.dr[7] &= ~DBREG_DR7_MASK(wp->index);
     if(wp->enabled) {
         dbreg64.dr[wp->index] = wp->address;
@@ -163,8 +177,7 @@ int debug_watchpt_handle(int fd, struct cmd_packet *packet) {
         dbreg64.dr[7] |= DBREG_DR7_SET(wp->index, NULL, NULL, DBREG_DR7_DISABLE);
     }
 
-    // todo: remove this print and clean up rest of code
-    uprintf("dr%i: %llX dr7: %llX", wp->index, wp->address, dbreg64.dr[7]);
+    uprintf("[ps4debug] dr%i: %llX dr7: %llX", wp->index, wp->address, dbreg64.dr[7]);
 
     // for each current lwpid edit the watchpoint
     for(int i = 0; i < nlwps; i++) {
@@ -452,8 +465,10 @@ int debug_stopgo_handle(int fd, struct cmd_packet *packet) {
 
     signal = NULL;
 
-    if(sp->stop) {
+    if(sp->stop == 1) {
         signal = SIGSTOP;
+    } else if(sp->stop == 2) {
+        signal = SIGKILL;
     }
     
     r = ptrace(PT_CONTINUE, dbgctx.pid, (void *)1, signal);
@@ -492,7 +507,7 @@ void debug_cleanup() {
         ptrace(PT_CONTINUE, dbgctx.pid, (void *)1, NULL);
         ptrace(PT_DETACH, dbgctx.pid, NULL, NULL);
         sceNetSocketClose(dbgctx.clientfd);
-        dbgctx.pid = -1;
+        dbgctx.pid = dbgctx.clientfd = -1;
     }
 }
 

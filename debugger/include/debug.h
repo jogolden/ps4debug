@@ -71,6 +71,7 @@ struct debug_interrupt_packet {
     struct __fpreg64 fpreg64;
     struct __dbreg64 dbreg64;
 } __attribute__((packed));
+#define DEBUG_INTERRUPT_PACKET_SIZE         0x360
 
 #define	DBREG_DR7_DISABLE       0x00
 #define	DBREG_DR7_LOCAL_ENABLE  0x01
