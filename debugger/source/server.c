@@ -40,6 +40,16 @@ int check_debug_interrupt() {
         if(signal == SIGSTOP) {
             uprintf("[ps4debug] passed on a SIGSTOP");
             return 0;
+        } else if(signal == SIGKILL) {
+            // the process will die
+            ptrace(PT_CONTINUE, dbgctx.pid, (void *)1, SIGKILL);
+            
+            // tiny cleanup, since process is dead now do not call debug_cleanup()
+            sceNetSocketClose(dbgctx.clientfd);
+            dbgctx.pid = dbgctx.clientfd = -1;
+            
+            uprintf("[ps4debug] sent final SIGKILL");
+            return 0;
         }
         
         resp = (struct debug_interrupt_packet *)malloc(DEBUG_INTERRUPT_PACKET_SIZE);
@@ -90,17 +100,9 @@ int handle_client(int fd, struct sockaddr_in *client) {
     // setup time val for select
     struct timeval tv;
     memset(&tv, NULL, sizeof(tv));
-    tv.tv_usec = 2000;
+    tv.tv_usec = 8000;
 
     while(1) {
-        // if we have a valid debugger context then check for interrupt
-        // this does not block, as wait is called with option WNOHANG
-        if(dbgctx.pid != -1 && dbgctx.clientfd != -1) {
-            if(check_debug_interrupt()) {
-                goto error;
-            }
-        }
-
         // do a select
         fd_set sfd;
         FD_ZERO(&sfd);
@@ -126,7 +128,15 @@ int handle_client(int fd, struct sockaddr_in *client) {
                 goto error;
             }
         } else {
-            sceKernelUsleep(40000);
+            // if we have a valid debugger context then check for interrupt
+            // this does not block, as wait is called with option WNOHANG
+            if(dbgctx.pid != -1 && dbgctx.clientfd != -1) {
+                if(check_debug_interrupt()) {
+                    goto error;
+                }
+            }
+
+            sceKernelUsleep(30000);
             continue;
         }
 
@@ -212,10 +222,13 @@ void start_server() {
     memset(server.sin_zero, 0, sizeof(server.sin_zero));
 
     // start up server
-    serv = sceNetSocket("dbgsock", AF_INET, SOCK_STREAM, 0);
+    serv = sceNetSocket("debugserver", AF_INET, SOCK_STREAM, 0);
 
     flag = 1;
 	sceNetSetsockopt(serv, SOL_SOCKET, SO_NBIO, (char *)&flag, sizeof(int));
+    
+    flag = 1;
+    sceNetSetsockopt(serv, SOL_SOCKET, SO_NOSIGPIPE, (char *)&flag, sizeof(int));
     
     flag = 1;
     sceNetSetsockopt(serv, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(int));
@@ -234,6 +247,9 @@ void start_server() {
 
             flag = 1;
             sceNetSetsockopt(fd, SOL_SOCKET, SO_NBIO, (char *)&flag, sizeof(int));
+            
+            flag = 1;
+            sceNetSetsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, (char *)&flag, sizeof(int));
             
             flag = 1;
             sceNetSetsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(int));

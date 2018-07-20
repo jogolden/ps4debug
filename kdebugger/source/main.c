@@ -6,31 +6,29 @@
 #include "hooks.h"
 #include "installer.h"
 
-void jailbreak() {
-	struct ucred* cred;
-	struct filedesc* fd;
-	struct thread *td;
-
-	td = curthread();
-	fd = td->td_proc->p_fd;
-	cred = td->td_proc->p_ucred;
-
-	cred->cr_uid = 0;
-	cred->cr_ruid = 0;
-	cred->cr_rgid = 0;
-	cred->cr_groups[0] = 0;
-	cred->cr_prison = *prison0;
-	fd->fd_rdir = fd->fd_jdir = *rootvnode;
-}
-
 void kpatches() {
 	cpu_disable_wp();
 
 	uint64_t kernbase = get_kbase();
 
+	// patch memcpy first
+	*(uint8_t *)(kernbase + 0x1EA53D) = 0xEB;
+
+	// patch sceSblACMgrIsAllowedSystemLevelDebugging
+	memcpy((void *)(kernbase + 0x11730), "\x48\xC7\xC0\x01\x00\x00\x00\xC3", 8);
+
+	// patch sceSblACMgrHasMmapSelfCapability
+	memcpy((void *)(kernbase + 0x117B0), "\x48\xC7\xC0\x01\x00\x00\x00\xC3", 8);
+
+	// patch sceSblACMgrIsAllowedToMmapSelf
+	memcpy((void *)(kernbase + 0x117C0), "\x48\xC7\xC0\x01\x00\x00\x00\xC3", 8);
+
 	// disable sysdump_perform_dump_on_fatal_trap
 	// will continue execution and give more information on crash, such as rip
 	*(uint8_t *)(kernbase + 0x7673E0) = 0xC3;
+
+	// self patches
+	memcpy((void *)(kernbase + 0x13F03F), "\x31\xC0\x90\x90\x90", 5);
 
 	// patch vm_map_protect check
 	memcpy((void *)(kernbase + 0x1A3C08), "\x90\x90\x90\x90\x90\x90", 6);
@@ -44,32 +42,29 @@ void kpatches() {
 	// patch ASLR, thanks 2much4u
 	*(uint16_t *)(kernbase + 0x194875) = 0x9090;
 
-	// remove suspicious unmount message
-	memcpy((void *)(kernbase + 0x1E028D), "\xEB\x4A", 2);
-
 	cpu_enable_wp();
 }
 
-void _main(void) {
+int _main(void) {
 	init_ksdk();
 
-	jailbreak();
 	kpatches();
 
-	*disable_console_output = 0;
+	*disable_console_output = NULL;
 
-	printf("[ps4debug] kdebugger loaded\n");
 	printf("[ps4debug] kernel base 0x%llX\n", get_kbase());
 
 	if(install_hooks()) {
 		printf("[ps4debug] failed to install hooks\n");
-		return;
+		return 1;
 	}
 	
 	if(install_debugger()) {
 		printf("[ps4debug] failed to install debugger\n");
-		return;
+		return 1;
 	}
 
-	printf("[ps4debug] hooks and debugger installed\n");
+	printf("[ps4debug] kdebugger hooks and debugger loaded\n");
+
+	return 0;
 }

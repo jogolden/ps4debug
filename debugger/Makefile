@@ -24,7 +24,7 @@ TARGET = debugger.bin
 $(TARGET): $(ODIR) $(OBJS)
 	$(CC) $(LIBPS4)/crt0.s $(ODIR)/*.o -o temp.t $(CFLAGS) $(LFLAGS) $(LIBS)
 	$(OBJCOPY) -O binary temp.t $(TARGET)
-	rm -f temp.t
+	#rm -f temp.t
 
 $(ODIR)/%.o: $(SDIR)/%.c
 	$(CC) -c -o $@ $< $(CFLAGS)

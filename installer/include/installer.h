@@ -8,8 +8,8 @@
 #include <ksdk.h>
 #include "elf.h"
 
-#define __kmem_alloc_p1 0x16ED8C
-#define __kmem_alloc_p2 0x16EDA2
+#define __kmem_alloc_p1 0xFCD48
+#define __kmem_alloc_p2 0xFCD56
 
 int runinstaller();
 

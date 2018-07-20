@@ -6,7 +6,7 @@
 
 struct debug_context dbgctx;
 
-int connect_client() {
+int connect_debugger() {
     struct sockaddr_in server;
 
     server.sin_len = sizeof(server);
@@ -15,7 +15,7 @@ int connect_client() {
     server.sin_port = sceNetHtons(DBG_PORT);
     memset(server.sin_zero, NULL, sizeof(server.sin_zero));
 
-    dbgctx.clientfd = sceNetSocket("dbgclient", AF_INET, SOCK_STREAM, 0);
+    dbgctx.clientfd = sceNetSocket("interrupt", AF_INET, SOCK_STREAM, 0);
     if(dbgctx.clientfd <= 0) {
         return 1;
     }
@@ -55,7 +55,7 @@ int debug_attach_handle(int fd, struct cmd_packet *packet) {
         memset(dbgctx.breakpoints, NULL, sizeof(dbgctx.breakpoints));
 
         // connect to server
-        r = connect_client();
+        r = connect_debugger();
         if(r) {
             uprintf("[ps4debug] could not connect to server");
             net_send_status(fd, CMD_ERROR);

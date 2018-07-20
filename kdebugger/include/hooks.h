@@ -7,6 +7,7 @@
 
 #include <ksdk.h>
 #include "proc.h"
+#include "elf.h"
 
 // custom syscall 107
 struct proc_list_entry {
@@ -27,7 +28,7 @@ struct sys_proc_rw_args {
     void *data;
     uint64_t length;
     uint64_t write;
-};
+} __attribute__((packed));
 int sys_proc_rw(struct thread *td, struct sys_proc_rw_args *uap);
 
 // custom syscall 109
@@ -37,11 +38,42 @@ int sys_proc_rw(struct thread *td, struct sys_proc_rw_args *uap);
 #define SYS_PROC_VM_MAP     4
 #define SYS_PROC_INSTALL    5
 #define SYS_PROC_CALL       6
+#define SYS_PROC_ELF        7
+struct sys_proc_alloc_args {
+    uint64_t address;
+    uint64_t length;
+} __attribute__((packed));
+struct sys_proc_free_args {
+    uint64_t address;
+    uint64_t length;
+} __attribute__((packed));
+struct sys_proc_protect_args {
+    uint64_t address;
+    uint64_t length;
+    uint64_t prot;
+} __attribute__((packed));
 struct sys_proc_vm_map_args {
     struct proc_vm_map_entry *maps;
     uint64_t num;
 } __attribute__((packed));
-
+struct sys_proc_install_args {
+    // null
+} __attribute__((packed));
+struct sys_proc_call_args {
+    uint32_t pid;
+	uint64_t rpcstub;
+    uint64_t rax;
+	uint64_t rip;
+	uint64_t rdi;
+	uint64_t rsi;
+	uint64_t rdx;
+	uint64_t rcx;
+	uint64_t r8;
+	uint64_t r9;
+} __attribute__((packed));
+struct sys_proc_elf_args {
+    void *elf;
+} __attribute__((packed));
 struct sys_proc_cmd_args {
     uint64_t pid;
     uint64_t cmd;

@@ -11,7 +11,7 @@ int proc_list_handle(int fd, struct cmd_packet *packet) {
 
     sys_proc_list(NULL, &num);
 
-    if(num) {
+    if(num > 0) {
         length = sizeof(struct proc_list_entry) * num;
         data = malloc(length);
         sys_proc_list(data, &num);
@@ -135,19 +135,33 @@ int proc_info_handle(int fd, struct cmd_packet *packet) {
     ip = (struct cmd_proc_info_packet *)packet->data;
 
     if(ip) {
-        memset(&args, 0, sizeof(args));
+        memset(&args, NULL, sizeof(args));
 
-        sys_proc_cmd(ip->pid, SYS_PROC_VM_MAP, &args);
+        if(sys_proc_cmd(ip->pid, SYS_PROC_VM_MAP, &args)) {
+            net_send_status(fd, CMD_ERROR);
+            return 1;
+        }
 
         size = args.num * sizeof(struct proc_vm_map_entry);
-        args.maps = (struct proc_vm_map_entry *)malloc(size);
 
-        sys_proc_cmd(ip->pid, SYS_PROC_VM_MAP, &args);
+        // todo: find a better way than allocating so much space
+        args.maps = (struct proc_vm_map_entry *)malloc(size);
+        if(!args.maps) {
+            net_send_status(fd, CMD_DATA_NULL);
+            return 1;
+        }
+
+        if(sys_proc_cmd(ip->pid, SYS_PROC_VM_MAP, &args)) {
+            net_send_status(fd, CMD_ERROR);
+            return 1;
+        }
 
         net_send_status(fd, CMD_SUCCESS);
         num = (uint32_t)args.num;
         net_send_data(fd, &num, sizeof(uint32_t));
         net_send_data(fd, args.maps, size);
+
+        free(args.maps);
 
         return 0;
     }
@@ -165,6 +179,44 @@ int proc_install_handle(int fd, struct cmd_packet *packet) {
 int proc_call_handle(int fd, struct cmd_packet *packet) {
     __asm("int 3");
     return 0;
+}
+
+int proc_elf_handle(int fd, struct cmd_packet *packet) {
+    struct cmd_proc_elf_packet *ep;
+    struct sys_proc_elf_args args;
+    void *elf;
+    
+    ep = (struct cmd_proc_elf_packet *)packet->data;
+
+    if(ep) {
+        elf = malloc(ep->length);
+        if(!elf) {
+            net_send_status(fd, CMD_DATA_NULL);
+            return 1;
+        }
+
+        net_send_status(fd, CMD_SUCCESS);
+
+        net_recv_data(fd, elf, ep->length, 1);
+
+        args.elf = elf;
+
+        if(sys_proc_cmd(ep->pid, SYS_PROC_ELF, &args)) {
+            free(elf);
+            net_send_status(fd, CMD_ERROR);
+            return 1;
+        }
+
+        free(elf);
+
+        net_send_status(fd, CMD_SUCCESS);
+
+        return 0;
+    }
+
+    net_send_status(fd, CMD_ERROR);
+    
+    return 1;
 }
 
 int proc_protect_handle(int fd, struct cmd_packet *packet) {
@@ -186,6 +238,8 @@ int proc_handle(int fd, struct cmd_packet *packet) {
             return proc_install_handle(fd, packet);
         case CMD_PROC_CALL:
             return proc_call_handle(fd, packet);
+        case CMD_PROC_ELF:
+            return proc_elf_handle(fd, packet);
         case CMD_PROC_PROTECT:
             return proc_protect_handle(fd, packet);
     }

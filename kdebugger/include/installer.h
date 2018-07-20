@@ -7,7 +7,6 @@
 
 #include <ksdk.h>
 #include "proc.h"
-#include "rpcasm.h"
 
 int install_debugger();
 

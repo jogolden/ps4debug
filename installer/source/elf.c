@@ -4,6 +4,16 @@
 
 #include "elf.h"
 
+// the memcpy function in kernel has checks
+void c__memcpy(void *dst, const void *src, uint32_t num) {
+	uint8_t *s2 = (uint8_t *)dst;
+	uint8_t *s1 = (uint8_t *)src;
+
+	while(num--) {
+		*s2++ = *s1++;
+	}
+}
+
 // thank you osdev for some help
 static inline struct Elf64_Phdr *elf_pheader(struct Elf64_Ehdr *hdr) {
 	if (!hdr->e_phoff) {
@@ -86,11 +96,11 @@ int map_elf(void *elf, void *exec) {
 			struct Elf64_Phdr *phdr = elf_segment(ehdr, i);
 
 			if (phdr->p_filesz) {
-				memcpy((uint8_t *)exec + phdr->p_paddr, (uint8_t *)elf + phdr->p_offset, phdr->p_filesz);
+				c__memcpy((uint8_t *)exec + phdr->p_paddr, (uint8_t *)elf + phdr->p_offset, phdr->p_filesz);
 			}
 
 			if (phdr->p_memsz - phdr->p_filesz) {
-				memset((uint8_t *)exec + phdr->p_paddr + phdr->p_filesz, 0, phdr->p_memsz - phdr->p_filesz);
+				memset((uint8_t *)exec + phdr->p_paddr + phdr->p_filesz, NULL, phdr->p_memsz - phdr->p_filesz);
 			}
 		}
 	} else {
@@ -103,7 +113,7 @@ int map_elf(void *elf, void *exec) {
 			}
 
 			if (shdr->sh_size) {
-				memcpy((uint8_t *)exec + shdr->sh_addr, (uint8_t *)elf + shdr->sh_offset, shdr->sh_size);
+				c__memcpy((uint8_t *)exec + shdr->sh_addr, (uint8_t *)elf + shdr->sh_offset, shdr->sh_size);
 			}
 		}
 	}
@@ -131,7 +141,7 @@ int relocate_elf(void *elf, void *exec) {
 				case R_X86_64_64:
 				case R_X86_64_JUMP_SLOT:
 				case R_X86_64_GLOB_DAT:
-					// TODO: relocations
+					// todo: rest of the relocations
 					break;
 				}
 			}

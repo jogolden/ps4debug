@@ -14,12 +14,20 @@ int _main(void) {
 	initNetwork();
 	initSysUtil();
 
+	// sleep a few seconds
+	// maybe lower our thread priority?
+	sceKernelSleep(2);
+
 	// just a little notify
-	sceSysUtilSendSystemNotificationWithText(222, "ps4debug loaded!");
+	sceSysUtilSendSystemNotificationWithText(222, "ps4debug");
 	sceSysUtilSendSystemNotificationWithText(222, "golden <3");
 
 	// jailbreak current thread
 	sys_console_cmd(SYS_CONSOLE_CMD_JAILBREAK, NULL);
+
+	// updates
+	mkdir("/update/PS4UPDATE.PUP", 0777);
+	mkdir("/update/PS4UPDATE.PUP.net.temp", 0777);
 
 	// start the server, this will block
 	start_server();

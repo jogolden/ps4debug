@@ -5,7 +5,6 @@
 #include "syscall.h"
 #include "installer.h"
 
-int _main(void) {	
-	syscall(11, runinstaller);
-	return 0;
+int _main(void) {
+	return syscall(11, runinstaller);
 }

@@ -18,7 +18,8 @@
 #define CMD_PROC_INFO	    	0xBDAA0004
 #define CMD_PROC_INTALL	    	0xBDAA0005
 #define CMD_PROC_CALL	    	0xBDAA0006
-#define CMD_PROC_PROTECT    	0xBDAA0007
+#define CMD_PROC_ELF	    	0xBDAA0007
+#define CMD_PROC_PROTECT    	0xBDAA0008
 
 #define CMD_DEBUG_ATTACH        0xBDBB0001
 #define CMD_DEBUG_DETACH        0xBDBB0002
@@ -109,6 +110,12 @@ struct cmd_proc_call_response {
 } __attribute__((packed));
 #define CMD_PROC_CALL_PACKET_SIZE 68
 #define CMD_PROC_CALL_RESPONSE_SIZE 12
+
+struct cmd_proc_elf_packet {
+	uint32_t pid;
+	uint32_t length;
+} __attribute__((packed));
+#define CMD_PROC_ELF_PACKET_SIZE 8
 
 struct cmd_proc_protect_packet {
 	uint32_t pid;

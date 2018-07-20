@@ -121,6 +121,7 @@ int debug_getdbregs_handle(int fd, struct cmd_packet *packet);
 int debug_setdbregs_handle(int fd, struct cmd_packet *packet);
 int debug_start_run_handle(int fd, struct cmd_packet *packet);
 
+int connect_debugger();
 void debug_cleanup();
 
 int debug_handle(int fd, struct cmd_packet *packet);

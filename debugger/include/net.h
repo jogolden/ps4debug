@@ -10,6 +10,8 @@
 
 #define NET_MAX_LENGTH      8192
 
+#define	SO_NOSIGPIPE	0x0800
+
 // I would like to move away from the stupid sony wrapper functions
 // They do not always return what I expect and I want to use straight syscalls
 

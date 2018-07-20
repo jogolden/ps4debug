@@ -31,7 +31,6 @@ int runinstaller() {
 
     *disable_console_output = 0;
 
-	printf("[ps4debug] installer loaded\n");
 	printf("[ps4debug] loading kdebugger...\n");
     
 	uint64_t mapsize = 0;

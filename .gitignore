@@ -3,4 +3,5 @@
 *.elf
 *.rar
 *.zip
+temp.t
 .vscode
