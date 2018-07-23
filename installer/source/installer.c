@@ -18,10 +18,13 @@ void *allocate_rwx_memory(uint64_t size) {
 
 	void *memory = (void *)kmem_alloc(*kernel_map, alignedSize);
 
-	cpu_disable_wp();
-	*(uint8_t *)(kernbase + __kmem_alloc_p1) = VM_PROT_DEFAULT;
-	*(uint8_t *)(kernbase + __kmem_alloc_p2) = VM_PROT_DEFAULT;
-	cpu_enable_wp();
+	// interesting comment here
+	// ChendoChap fucked up when updating my old jkpatch framework
+	// so for backwards compat. we need to keep this patched 
+	//cpu_disable_wp();
+	//*(uint8_t *)(kernbase + __kmem_alloc_p1) = VM_PROT_DEFAULT;
+	//*(uint8_t *)(kernbase + __kmem_alloc_p2) = VM_PROT_DEFAULT;
+	//cpu_enable_wp();
 
 	return memory;
 }

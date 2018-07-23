@@ -22,8 +22,10 @@ int net_send_data(int fd, void *data, int length) {
 			sent = write(fd, data + offset, left);
 		}
 
-		if (sent <= 0 && errno && errno != EWOULDBLOCK) {
-			return sent;
+		if (sent <= 0) {
+			if(errno && errno != EWOULDBLOCK) {
+				return sent;
+			}
 		} else {
 			offset += sent;
 			left -= sent;

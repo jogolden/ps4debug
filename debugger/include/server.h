@@ -18,6 +18,7 @@
 #define SERVER_PORT             744
 
 // this will block
+void configure_socket(int fd, int buffersize);
 void start_server();
 
 #endif

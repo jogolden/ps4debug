@@ -6,29 +6,6 @@
 
 struct debug_context dbgctx;
 
-int connect_debugger() {
-    struct sockaddr_in server;
-
-    server.sin_len = sizeof(server);
-    server.sin_family = AF_INET;
-    server.sin_addr.s_addr = dbgctx.client.sin_addr.s_addr;
-    server.sin_port = sceNetHtons(DBG_PORT);
-    memset(server.sin_zero, NULL, sizeof(server.sin_zero));
-
-    dbgctx.clientfd = sceNetSocket("interrupt", AF_INET, SOCK_STREAM, 0);
-    if(dbgctx.clientfd <= 0) {
-        return 1;
-    }
-
-    errno = NULL;
-    int r = sceNetConnect(dbgctx.clientfd, (struct sockaddr *)&server, sizeof(server));
-    if(r) {
-        return 1;
-    }
-
-    return 0;
-}
-
 int debug_attach_handle(int fd, struct cmd_packet *packet) {
     struct cmd_debug_attach_packet *ap;
     int r;
@@ -85,7 +62,6 @@ int debug_detach_handle(int fd, struct cmd_packet *packet) {
 int debug_breakpt_handle(int fd, struct cmd_packet *packet) {
     struct cmd_debug_breakpt_packet *bp;
     uint8_t int3;
-    uint8_t original;
 
     bp = (struct cmd_debug_breakpt_packet *)packet->data;
     
@@ -110,15 +86,15 @@ int debug_breakpt_handle(int fd, struct cmd_packet *packet) {
         breakpoint->enabled = 1;
         breakpoint->address = bp->address;
 
-        sys_proc_rw(dbgctx.pid, breakpoint->address, &original, 1, 0);
-        breakpoint->original = original;
+        sys_proc_rw(dbgctx.pid, breakpoint->address, &breakpoint->original, 1, 0);
 
         int3 = 0xCC;
         sys_proc_rw(dbgctx.pid, breakpoint->address, &int3, 1, 1);
     } else {
+        sys_proc_rw(dbgctx.pid, breakpoint->address, &breakpoint->original, 1, 1);
+
         breakpoint->enabled = 0;
         breakpoint->address = NULL;
-        sys_proc_rw(dbgctx.pid, breakpoint->address, &breakpoint->original, 1, 0);
     }
 
     net_send_status(fd, CMD_SUCCESS);
@@ -482,6 +458,29 @@ int debug_stopgo_handle(int fd, struct cmd_packet *packet) {
     return 0;
 }
 
+int connect_debugger() {
+    struct sockaddr_in server;
+
+    server.sin_len = sizeof(server);
+    server.sin_family = AF_INET;
+    server.sin_addr.s_addr = dbgctx.client.sin_addr.s_addr;
+    server.sin_port = sceNetHtons(DBG_PORT);
+    memset(server.sin_zero, NULL, sizeof(server.sin_zero));
+
+    dbgctx.clientfd = sceNetSocket("interrupt", AF_INET, SOCK_STREAM, 0);
+    if(dbgctx.clientfd <= 0) {
+        return 1;
+    }
+
+    errno = NULL;
+    int r = sceNetConnect(dbgctx.clientfd, (struct sockaddr *)&server, sizeof(server));
+    if(r) {
+        return 1;
+    }
+
+    return 0;
+}
+
 void debug_cleanup() {
     struct __dbreg64 dbreg64;
     uint32_t *lwpids;
@@ -489,23 +488,31 @@ void debug_cleanup() {
     int r;
 
     if(dbgctx.pid != -1) {
+        // disable all breakpoints
+        for(int i = 0; i < MAX_BREAKPOINTS; i++) {
+            sys_proc_rw(dbgctx.pid, dbgctx.breakpoints[i].address, &dbgctx.breakpoints[i].original, 1, 1);
+        }
+
         // reset all debug registers
         nlwps = ptrace(PT_GETNUMLWPS, dbgctx.pid, NULL, 0);
         lwpids = (uint32_t *)malloc(nlwps * sizeof(uint32_t));
+        if(lwpids) {
+            memset(&dbreg64, NULL, sizeof(struct __dbreg64));
 
-        memset(&dbreg64, NULL, sizeof(struct __dbreg64));
-
-        r = ptrace(PT_GETLWPLIST, dbgctx.pid, (void *)lwpids, nlwps);
-        if(!r) {
-            for(int i = 0; i < nlwps; i++) {
-                ptrace(PT_SETDBREGS, lwpids[i], &dbreg64, NULL);
+            r = ptrace(PT_GETLWPLIST, dbgctx.pid, (void *)lwpids, nlwps);
+            
+            if(!r) {
+                for(int i = 0; i < nlwps; i++) {
+                    ptrace(PT_SETDBREGS, lwpids[i], &dbreg64, NULL);
+                }
             }
-        }
 
-        free(lwpids);
+            free(lwpids);
+        }
 
         ptrace(PT_CONTINUE, dbgctx.pid, (void *)1, NULL);
         ptrace(PT_DETACH, dbgctx.pid, NULL, NULL);
+
         sceNetSocketClose(dbgctx.clientfd);
         dbgctx.pid = dbgctx.clientfd = -1;
     }

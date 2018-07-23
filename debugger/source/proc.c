@@ -144,7 +144,6 @@ int proc_info_handle(int fd, struct cmd_packet *packet) {
 
         size = args.num * sizeof(struct proc_vm_map_entry);
 
-        // todo: find a better way than allocating so much space
         args.maps = (struct proc_vm_map_entry *)malloc(size);
         if(!args.maps) {
             net_send_status(fd, CMD_DATA_NULL);

@@ -16,14 +16,14 @@ int load_payload(struct proc *p) {
 	struct vm_map *map = &vm->vm_map;
 
 	vm_map_lock(map);
-	r = vm_map_insert(map, NULL, NULL, 0x926200000, 0x926200000 + 0x300000, VM_PROT_ALL, VM_PROT_ALL, 0);
+	r = vm_map_insert(map, NULL, NULL, 0x926200000, 0x926200000 + 0x400000, VM_PROT_ALL, VM_PROT_ALL, 0);
 	vm_map_unlock(map);
 
 	if(r) {
 		return r;
 	}
 
-    return proc_write_mem(p, (void *)0x926200000, cbdbg, bdbg, 0);
+    return proc_write_mem(p, (void *)0x926200000, cbdbg, bdbg, NULL);
 }
 
 int exec_payload(struct proc *p) {
