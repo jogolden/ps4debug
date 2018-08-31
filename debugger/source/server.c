@@ -9,7 +9,7 @@ int cmd_handler(int fd, struct cmd_packet *packet) {
 		return 1;
 	}
 
-    uprintf("[ps4debug] cmd_handler %X", packet->cmd);
+    uprintf("cmd_handler %X", packet->cmd);
 
     if(VALID_PROC_CMD(packet->cmd)) {
         return proc_handle(fd, packet);
@@ -37,10 +37,10 @@ int check_debug_interrupt() {
     if(wait4(dbgctx.pid, &status, WNOHANG, NULL)) {
         signal = WSTOPSIG(status);
 
-        uprintf("[ps4debug] check_debug_interrupt signal %i", signal);
+        uprintf("check_debug_interrupt signal %i", signal);
 
         if(signal == SIGSTOP) {
-            uprintf("[ps4debug] passed on a SIGSTOP");
+            uprintf("passed on a SIGSTOP");
             return 0;
         } else if(signal == SIGKILL) {
             // the process will die
@@ -50,13 +50,13 @@ int check_debug_interrupt() {
             sceNetSocketClose(dbgctx.clientfd);
             dbgctx.pid = dbgctx.clientfd = -1;
             
-            uprintf("[ps4debug] sent final SIGKILL");
+            uprintf("sent final SIGKILL");
             return 0;
         }
 
         resp = (struct debug_interrupt_packet *)malloc(DEBUG_INTERRUPT_PACKET_SIZE);
         if(!resp) {
-            uprintf("[ps4debug] could not allocate interrupt response");
+            uprintf("could not allocate interrupt response");
             return 1;
         }
 
@@ -85,13 +85,13 @@ int check_debug_interrupt() {
         }
 
         if(breakpoint) {
-            uprintf("[ps4debug] dealing with software breakpoint");
-            uprintf("[ps4debug] breakpoint: %llX %X", breakpoint->address, breakpoint->original);
+            uprintf("dealing with software breakpoint");
+            uprintf("breakpoint: %llX %X", breakpoint->address, breakpoint->original);
 
             // write old instruction
             sys_proc_rw(dbgctx.pid, breakpoint->address, &breakpoint->original, 1, 1);
 
-            // todo: clean this up
+            // TODO: clean this up
 
             resp->reg64.r_rip -= 1;
             ptrace(PT_SETREGS, resp->lwpid, &resp->reg64, NULL);
@@ -107,15 +107,15 @@ int check_debug_interrupt() {
             int3 = 0xCC;
             sys_proc_rw(dbgctx.pid, breakpoint->address, &int3, 1, 1);
         } else {
-            uprintf("[ps4debug] dealing with hardware breakpoint");
+            uprintf("dealing with hardware breakpoint");
         }
         
         r = net_send_data(dbgctx.clientfd, resp, DEBUG_INTERRUPT_PACKET_SIZE);
         if(r != DEBUG_INTERRUPT_PACKET_SIZE) {
-            uprintf("[ps4debug] net_send_data failed %i %i", r, errno);
+            uprintf("net_send_data failed %i %i", r, errno);
         }
         
-        uprintf("[ps4debug] check_debug_interrupt interrupt data sent");
+        uprintf("check_debug_interrupt interrupt data sent");
 
         free(resp);
     }
@@ -172,22 +172,27 @@ int handle_client(int fd, struct sockaddr_in *client) {
                     goto error;
                 }
             }
+            
+            // check if disconnected
+            if (errno == ECONNRESET) {
+                goto error;
+            }
 
-            sceKernelUsleep(30000);
+            sceKernelUsleep(25000);
             continue;
         }
 
-        uprintf("[ps4debug] client packet recieved");
+        uprintf("client packet recieved");
 
         // invalid packet
 		if (packet.magic != PACKET_MAGIC) {
-            uprintf("[ps4debug] invalid packet magic %X!", packet.magic);
+            uprintf("invalid packet magic %X!", packet.magic);
 			continue;
 		}
 
 		// mismatch received size
 		if (rsize != CMD_PACKET_SIZE) {
-            uprintf("[ps4debug] invalid recieve size %i!", rsize);
+            uprintf("invalid recieve size %i!", rsize);
 			continue;
 		}
 
@@ -199,7 +204,7 @@ int handle_client(int fd, struct sockaddr_in *client) {
 				goto error;
 			}
 
-            uprintf("[ps4debug] recieving data length %i", length);
+            uprintf("recieving data length %i", length);
 
 			// recv data
 			r = net_recv_data(fd, data, length, 1);
@@ -213,10 +218,11 @@ int handle_client(int fd, struct sockaddr_in *client) {
 			packet.data = NULL;
 		}
 
-        // check crc if there is one
-        //if(packet.crc != crc32(0, data, length)) {
-            //goto error;
-        //}
+        // TODO: check crc if there is one
+        /*if(crc32(0, data, length) != packet.crc) {
+            uprintf("invalid packet checksum");
+            goto error;
+        }*/
 
 		// handle the packet
 		r = cmd_handler(fd, &packet);
@@ -233,7 +239,7 @@ int handle_client(int fd, struct sockaddr_in *client) {
     }
 
 error:
-    uprintf("[ps4debug] client disconnected errno: %i", errno);
+    uprintf("client disconnected errno: %i", errno);
     sceNetSocketClose(fd);
 
     // if there is a dbgctx then release it
@@ -243,7 +249,7 @@ error:
     return 0;
 }
 
-void configure_socket(int fd, int buffersize) {
+void configure_socket(int fd) {
     int flag;
 
     flag = 1;
@@ -254,20 +260,6 @@ void configure_socket(int fd, int buffersize) {
 
     flag = 1;
     sceNetSetsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, (char *)&flag, sizeof(flag));
-
-    flag = 0;
-    sceNetSetsockopt(fd, SOL_SOCKET, SO_LINGER, (char *)&flag, sizeof(flag));
-    
-    //flag = 0;
-    //sceNetSetsockopt(fd, SOL_SOCKET, SO_USELOOPBACK, (char *)&flag, sizeof(flag));
-
-    if(buffersize) {
-        flag = NET_MAX_LENGTH;
-        sceNetSetsockopt(fd, SOL_SOCKET, SO_SNDBUF, (char *)&flag, sizeof(flag));
-        
-        flag = NET_MAX_LENGTH;
-        sceNetSetsockopt(fd, SOL_SOCKET, SO_RCVBUF, (char *)&flag, sizeof(flag));
-    }
 }
 
 void start_server() {
@@ -276,7 +268,7 @@ void start_server() {
     int serv, fd;
     unsigned int len = sizeof(client);
 
-    uprintf("[ps4debug] server started");
+    uprintf("server started");
 
     // server structure
     server.sin_len = sizeof(server);
@@ -286,11 +278,14 @@ void start_server() {
     memset(server.sin_zero, 0, sizeof(server.sin_zero));
 
     // start up server
-    // todo: error checking
+    // TODO: error checking
     serv = sceNetSocket("debugserver", AF_INET, SOCK_STREAM, 0);
-    configure_socket(serv, 0);
+
+    configure_socket(serv);
+    
     sceNetBind(serv, (struct sockaddr *)&server, sizeof(server));
-    sceNetListen(serv, 4);
+    
+    sceNetListen(serv, 8);
 
     while(1) {
         scePthreadYield();
@@ -298,12 +293,12 @@ void start_server() {
         errno = NULL;
         fd = sceNetAccept(serv, (struct sockaddr *)&client, &len);
         if(fd > -1 && !errno) {
-            uprintf("[ps4debug] accepted a new client");
+            uprintf("accepted a new client");
 
-            configure_socket(fd, 1);
+            configure_socket(fd);
             handle_client(fd, &client);
         }
 
-        sceKernelSleep(1);
+        sceKernelSleep(2);
     }
 }

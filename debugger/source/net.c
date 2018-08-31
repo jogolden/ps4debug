@@ -35,8 +35,6 @@ int net_send_data(int fd, void *data, int length) {
 	return offset;
 }
 
-#include "kdbg.h"
-
 int net_recv_data(int fd, void *data, int length, int force) {
 	int left = length;
 	int offset = 0;

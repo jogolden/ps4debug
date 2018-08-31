@@ -4,7 +4,7 @@
 
 #include "kern.h"
 
-// todo: same as proc.c with the read/write functions, send as chunks
+// TODO: same as proc.c with the read/write functions, send as chunks
 
 int kern_base_handle(int fd, struct cmd_packet *packet) {
     uint64_t kernbase;

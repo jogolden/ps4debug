@@ -351,7 +351,6 @@ enum {
 };
 
 // i386 relocations.
-// TODO: this is just a subset
 enum {
 	R_386_NONE          = 0,
 	R_386_32            = 1,

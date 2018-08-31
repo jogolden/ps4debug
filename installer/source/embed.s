@@ -1,13 +1,25 @@
 .section .rodata
-	.global bkdbg
-	.type   bkdbg, @object
+
+	.global kernelelf
+	.type   kernelelf, @object
 	.align  4
-bkdbg:
+kernelelf:
 	.incbin "../kdebugger/kdebugger.elf"
-bkdbge:
-	.global cbkdbg
-	.type   cbkdbg, @object
+kernelelfend:
+	.global kernelelf_size
+	.type   kernelelf_size, @object
 	.align  4
-cbkdbg:
-	.int    bkdbge - bkdbg
+kernelelf_size:
+	.int    kernelelfend - kernelelf
 	
+	.global debuggerbin
+	.type   debuggerbin, @object
+	.align  4
+debuggerbin:
+	.incbin "../debugger/debugger.bin"
+debuggerbinend:
+	.global debuggerbin_size
+	.type   debuggerbin_size, @object
+	.align  4
+debuggerbin_size:
+	.int    debuggerbinend - debuggerbin

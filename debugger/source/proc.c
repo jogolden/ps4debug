@@ -14,6 +14,11 @@ int proc_list_handle(int fd, struct cmd_packet *packet) {
     if(num > 0) {
         length = sizeof(struct proc_list_entry) * num;
         data = malloc(length);
+        if(!data) {
+            net_send_status(fd, CMD_DATA_NULL);
+            return 1;
+        }
+
         sys_proc_list(data, &num);
         net_send_status(fd, CMD_SUCCESS);
         net_send_data(fd, &num, sizeof(uint32_t));
@@ -22,9 +27,8 @@ int proc_list_handle(int fd, struct cmd_packet *packet) {
 
         return 0;
     }
-    
+
     net_send_status(fd, CMD_DATA_NULL);
-    
     return 1;
 }
 
@@ -144,11 +148,28 @@ int proc_info_handle(int fd, struct cmd_packet *packet) {
 
         size = args.num * sizeof(struct proc_vm_map_entry);
 
-        args.maps = (struct proc_vm_map_entry *)malloc(size);
+        // I will use mmap because malloc is giving a kernel panic because it isnt allocating correctly?
+        // fuck you sony!
+        /*args.maps = (struct proc_vm_map_entry *)malloc(size);
+        if(!args.maps) {
+            net_send_status(fd, CMD_DATA_NULL);
+            return 1;
+        }*/
+        args.maps = (struct proc_vm_map_entry *)mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, NULL);
         if(!args.maps) {
             net_send_status(fd, CMD_DATA_NULL);
             return 1;
         }
+
+        // prefault memory, wont work without this - thanks cturt...
+        for(uint64_t i = 0; i < size; i++) {
+            volatile uint8_t c;
+            (void)c;
+            
+            c = ((char *)args.maps)[i];
+        }
+
+        uprintf("address: %llX size: %X", args.maps, size);
 
         if(sys_proc_cmd(ip->pid, SYS_PROC_VM_MAP, &args)) {
             net_send_status(fd, CMD_ERROR);
@@ -159,8 +180,9 @@ int proc_info_handle(int fd, struct cmd_packet *packet) {
         num = (uint32_t)args.num;
         net_send_data(fd, &num, sizeof(uint32_t));
         net_send_data(fd, args.maps, size);
-
-        free(args.maps);
+        
+        munmap(args.maps, size);
+        //free(args.maps);
 
         return 0;
     }

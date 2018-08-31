@@ -18,9 +18,13 @@ inline void write_jmp(uint64_t address, uint64_t destination) {
 int sys_proc_list(struct thread *td, struct sys_proc_list_args *uap) {
     struct proc *p;
     int num;
+    int r;
+
+    r = 0;
 
     if(!uap->num) {
-        return 1;
+        r = 1;
+        goto finish;
     }
 
     if(!uap->procs) {
@@ -30,6 +34,7 @@ int sys_proc_list(struct thread *td, struct sys_proc_list_args *uap) {
         do {
             num++;
         } while ((p = p->p_forw));
+        
         *uap->num = num;
     } else {
         // fill structure
@@ -45,18 +50,24 @@ int sys_proc_list(struct thread *td, struct sys_proc_list_args *uap) {
         }
 	}
 
-    return 0;
+finish:
+    td->td_retval[0] = r;
+    return r;
 }
 
 int sys_proc_rw(struct thread *td, struct sys_proc_rw_args *uap) {
     struct proc *p;
+    int r;
+
+    r = 1;
 
     p = proc_find_by_pid(uap->pid);
     if(p) {
-        return proc_rw_mem(p, (void *)uap->address, uap->length, uap->data, 0, uap->write);
+        r = proc_rw_mem(p, (void *)uap->address, uap->length, uap->data, 0, uap->write);
     }
     
-    return 0;
+    td->td_retval[0] = r;
+    return r;
 }
 
 int sys_proc_alloc_handle(struct proc *p, struct sys_proc_alloc_args *args) {
@@ -88,14 +99,11 @@ int sys_proc_vm_map_handle(struct proc *p, struct sys_proc_vm_map_args *args) {
     vm = p->p_vmspace;
     map = &vm->vm_map;
 
-    if(!args->num && !args->maps) {
+    vm_map_lock_read(map);
+
+    if(!args->maps) {
         args->num = map->nentries;
-        return 0;
-    }
-
-    if(args->maps) {
-        vm_map_lock_read(map);
-
+    } else {
         if(vm_map_lookup_entry(map, NULL, &entry)) {
             vm_map_unlock_read(map);
             return 1;
@@ -106,18 +114,17 @@ int sys_proc_vm_map_handle(struct proc *p, struct sys_proc_vm_map_args *args) {
             args->maps[i].end = entry->end;
             args->maps[i].offset = entry->offset;
             args->maps[i].prot = entry->prot & (entry->prot >> 8);
-            copyout(entry->name, args->maps[i].name, sizeof(args->maps[i].name));
+            memcpy(args->maps[i].name, entry->name, sizeof(args->maps[i].name));
             
-            if (!(entry = entry->next)) {
+            if(!(entry = entry->next)) {
                 break;
             }
         }
-
-        vm_map_unlock_read(map);
-        return 0;
     }
 
-    return 1;
+    vm_map_unlock_read(map);
+
+    return 0;
 }
 
 int sys_proc_install_handle(struct proc *p, struct sys_proc_install_args *args) {
@@ -217,34 +224,49 @@ int sys_proc_elf_handle(struct proc *p, struct sys_proc_elf_args *args) {
 
 int sys_proc_cmd(struct thread *td, struct sys_proc_cmd_args *uap) {
     struct proc *p;
+    int r;
 
     p = proc_find_by_pid(uap->pid);
     if(!p) {
-        return 1;
+        r = 1;
+        goto finish;
     }
 
     switch(uap->cmd) {
         case SYS_PROC_ALLOC:
-            return sys_proc_alloc_handle(p, (struct sys_proc_alloc_args *)uap->data);
+            r = sys_proc_alloc_handle(p, (struct sys_proc_alloc_args *)uap->data);
+            break;
         case SYS_PROC_FREE:
-            return sys_proc_free_handle(p, (struct sys_proc_free_args *)uap->data);
+            r = sys_proc_free_handle(p, (struct sys_proc_free_args *)uap->data);
+            break;
         case SYS_PROC_PROTECT:
-            return sys_proc_protect_handle(p, (struct sys_proc_protect_args *)uap->data);
+            r = sys_proc_protect_handle(p, (struct sys_proc_protect_args *)uap->data);
+            break;
         case SYS_PROC_VM_MAP:
-            return sys_proc_vm_map_handle(p, (struct sys_proc_vm_map_args *)uap->data);
+            r = sys_proc_vm_map_handle(p, (struct sys_proc_vm_map_args *)uap->data);
+            break;
         case SYS_PROC_INSTALL:
-            return sys_proc_install_handle(p, (struct sys_proc_install_args *)uap->data);
+            r = sys_proc_install_handle(p, (struct sys_proc_install_args *)uap->data);
+            break;
         case SYS_PROC_CALL:
-            return sys_proc_call_handle(p, (struct sys_proc_call_args *)uap->data);
+            r = sys_proc_call_handle(p, (struct sys_proc_call_args *)uap->data);
+            break;
         case SYS_PROC_ELF:
-            return sys_proc_elf_handle(p, (struct sys_proc_elf_args *)uap->data);
+            r = sys_proc_elf_handle(p, (struct sys_proc_elf_args *)uap->data);
+            break;
+        default:
+            r = 1;
+            break;
     }
 
-    return 1;
+finish:
+    td->td_retval[0] = r;
+    return r;
 }
 
 int sys_kern_base(struct thread *td, struct sys_kern_base_args *uap) {
     *uap->kbase = get_kbase();
+    td->td_retval[0] = 0;
     return 0;
 }
 
@@ -257,18 +279,18 @@ int sys_kern_rw(struct thread *td, struct sys_kern_rw_args *uap) {
         memcpy(uap->data, (void *)uap->address, uap->length);
     }
 
+    td->td_retval[0] = 0;
     return 0;
 }
 
 int sys_console_cmd(struct thread *td, struct sys_console_cmd_args *uap) {
     switch(uap->cmd) {
         case SYS_CONSOLE_CMD_REBOOT:
-            printf("rebooting console...\n");
             kern_reboot(0);
             break;
         case SYS_CONSOLE_CMD_PRINT:
             if(uap->data) {
-                printf("%s\n", uap->data);
+                printf("[ps4debug] %s\n", uap->data);
             }
             break;
         case SYS_CONSOLE_CMD_JAILBREAK: {
@@ -290,6 +312,7 @@ int sys_console_cmd(struct thread *td, struct sys_console_cmd_args *uap) {
         }
     }
 
+    td->td_retval[0] = 0;
     return 0;
 }
 
@@ -325,6 +348,14 @@ void hook_trap_fatal(struct trapframe *tf) {
 	kern_reboot(4);
 }
 
+void install_syscall(uint32_t n, void *func) {
+    struct sysent *p = &sysents[n];
+    memset(p, NULL, sizeof(struct sysent));
+    p->sy_narg = 8;
+    p->sy_call = func;
+    p->sy_thrcnt = 1;
+}
+
 int install_hooks() {
     cpu_disable_wp();
 
@@ -333,41 +364,17 @@ int install_hooks() {
     memcpy((void *)(kernbase + 0x1718D8), "\x4C\x89\xE7", 3); // mov rdi, r12
 	write_jmp(kernbase + 0x1718DB, (uint64_t)hook_trap_fatal);
 
-    struct sysent *_proc_list = &sysents[107];
-    memset(_proc_list, 0, sizeof(struct sysent));
-    _proc_list->sy_narg = 5;
-    _proc_list->sy_call = sys_proc_list;
-    _proc_list->sy_thrcnt = 1;
+    // proc
+    install_syscall(107, sys_proc_list);
+    install_syscall(108, sys_proc_rw);
+    install_syscall(109, sys_proc_cmd);
 
-    struct sysent *_proc_rw = &sysents[108];
-    memset(_proc_rw, 0, sizeof(struct sysent));
-    _proc_rw->sy_narg = 5;
-    _proc_rw->sy_call = sys_proc_rw;
-    _proc_rw->sy_thrcnt = 1;
+    // kern
+    install_syscall(110, sys_kern_base);
+    install_syscall(111, sys_kern_rw);
 
-    struct sysent *_proc_cmd = &sysents[109];
-    memset(_proc_cmd, 0, sizeof(struct sysent));
-    _proc_cmd->sy_narg = 5;
-    _proc_cmd->sy_call = sys_proc_cmd;
-    _proc_cmd->sy_thrcnt = 1;
-
-    struct sysent *_kern_base = &sysents[110];
-    memset(_kern_base, 0, sizeof(struct sysent));
-    _kern_base->sy_narg = 5;
-    _kern_base->sy_call = sys_kern_base;
-    _kern_base->sy_thrcnt = 1;
-
-    struct sysent *_kern_rw = &sysents[111];
-    memset(_kern_rw, 0, sizeof(struct sysent));
-    _kern_rw->sy_narg = 5;
-    _kern_rw->sy_call = sys_kern_rw;
-    _kern_rw->sy_thrcnt = 1;
-    
-    struct sysent *_console_cmd = &sysents[112];
-    memset(_console_cmd, 0, sizeof(struct sysent));
-    _console_cmd->sy_narg = 5;
-    _console_cmd->sy_call = sys_console_cmd;
-    _console_cmd->sy_thrcnt = 1;
+    // console
+    install_syscall(112, sys_console_cmd);
 
     cpu_enable_wp();
 

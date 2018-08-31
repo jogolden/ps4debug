@@ -4,16 +4,6 @@
 
 #include "elf.h"
 
-// the memcpy function in kernel has checks
-void c__memcpy(void *dst, const void *src, uint32_t num) {
-	uint8_t *s2 = (uint8_t *)dst;
-	uint8_t *s1 = (uint8_t *)src;
-
-	while(num--) {
-		*s2++ = *s1++;
-	}
-}
-
 int elf_mapped_size(void *elf, uint64_t *msize) {
 	struct Elf64_Ehdr *ehdr = (struct Elf64_Ehdr *)elf;
 

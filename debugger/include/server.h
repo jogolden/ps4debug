@@ -17,8 +17,7 @@
 #define SERVER_IN               IN_ADDR_ANY
 #define SERVER_PORT             744
 
-// this will block
-void configure_socket(int fd, int buffersize);
+void configure_socket(int fd);
 void start_server();
 
 #endif

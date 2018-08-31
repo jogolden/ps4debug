@@ -6,10 +6,10 @@
 #define _INSTALLER_H
 
 #include <ksdk.h>
-#include "elf.h"
+#include "proc.h"
 
-#define __kmem_alloc_p1 0xFCD48
-#define __kmem_alloc_p2 0xFCD56
+#define PAYLOAD_BASE 0x926200000
+#define PAYLOAD_SIZE 0x400000
 
 int runinstaller();
 

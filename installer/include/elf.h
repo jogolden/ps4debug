@@ -351,7 +351,6 @@ enum {
 };
 
 // i386 relocations.
-// TODO: this is just a subset
 enum {
 	R_386_NONE          = 0,
 	R_386_32            = 1,
@@ -1443,12 +1442,47 @@ enum {
 	VER_NEED_CURRENT = 1
 };
 
+
 // error codes
 #define LDR_SUCCESS			0
 #define LDR_INVALID_ELF		1
 #define LDR_SIZE_ERROR		2
 #define LDR_MAP_ERROR		3
 #define LDR_RELOC_ERROR		4
+
+static inline struct Elf64_Phdr *elf_pheader(struct Elf64_Ehdr *hdr) {
+	if (!hdr->e_phoff) {
+		return 0;
+	}
+
+	return (struct Elf64_Phdr *)((uint64_t)hdr + hdr->e_phoff);
+}
+
+static inline struct Elf64_Phdr *elf_segment(struct Elf64_Ehdr *hdr, int idx) {
+	uint64_t addr = (uint64_t)elf_pheader(hdr);
+	if (!addr) {
+		return 0;
+	}
+
+	return (struct Elf64_Phdr *)(addr + (hdr->e_phentsize * idx));
+}
+
+static inline struct Elf64_Shdr *elf_sheader(struct Elf64_Ehdr *hdr) {
+	if (!hdr->e_shoff) {
+		return 0;
+	}
+
+	return (struct Elf64_Shdr *)((uint64_t)hdr + hdr->e_shoff);
+}
+
+static inline struct Elf64_Shdr *elf_section(struct Elf64_Ehdr *hdr, int idx) {
+	uint64_t addr = (uint64_t)elf_sheader(hdr);
+	if (!addr) {
+		return 0;
+	}
+
+	return (struct Elf64_Shdr *)(addr + (hdr->e_shentsize * idx));
+}
 
 int elf_mapped_size(void *elf, uint64_t *msize);
 

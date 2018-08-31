@@ -15,7 +15,7 @@ int debug_attach_handle(int fd, struct cmd_packet *packet) {
     if(ap) {
         r = ptrace(PT_ATTACH, ap->pid, NULL, NULL);
         if(r) {
-            uprintf("[ps4debug] ptrace PT_ATTACH failed");
+            uprintf("ptrace PT_ATTACH failed");
             net_send_status(fd, CMD_ERROR);
             return 1;    
         }
@@ -23,7 +23,7 @@ int debug_attach_handle(int fd, struct cmd_packet *packet) {
         //wait4(ap->pid, NULL, NULL, NULL);
         r = ptrace(PT_CONTINUE, ap->pid, (void *)1, NULL);
         if(r) {
-            uprintf("[ps4debug] ptrace PT_CONTINUE failed");
+            uprintf("ptrace PT_CONTINUE failed");
             net_send_status(fd, CMD_ERROR);
             return 1;    
         }
@@ -34,12 +34,12 @@ int debug_attach_handle(int fd, struct cmd_packet *packet) {
         // connect to server
         r = connect_debugger();
         if(r) {
-            uprintf("[ps4debug] could not connect to server");
+            uprintf("could not connect to server");
             net_send_status(fd, CMD_ERROR);
             return 1;    
         }
 
-        uprintf("[ps4debug] debugger is attached");
+        uprintf("debugger is attached");
 
         net_send_status(fd, CMD_SUCCESS);
 
@@ -153,7 +153,7 @@ int debug_watchpt_handle(int fd, struct cmd_packet *packet) {
         dbreg64.dr[7] |= DBREG_DR7_SET(wp->index, NULL, NULL, DBREG_DR7_DISABLE);
     }
 
-    uprintf("[ps4debug] dr%i: %llX dr7: %llX", wp->index, wp->address, dbreg64.dr[7]);
+    //uprintf("dr%i: %llX dr7: %llX", wp->index, wp->address, dbreg64.dr[7]);
 
     // for each current lwpid edit the watchpoint
     for(int i = 0; i < nlwps; i++) {

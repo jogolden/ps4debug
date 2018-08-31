@@ -4,48 +4,6 @@
 
 #include "elf.h"
 
-// the memcpy function in kernel has checks
-void c__memcpy(void *dst, const void *src, uint32_t num) {
-	uint8_t *s2 = (uint8_t *)dst;
-	uint8_t *s1 = (uint8_t *)src;
-
-	while(num--) {
-		*s2++ = *s1++;
-	}
-}
-
-// thank you osdev for some help
-static inline struct Elf64_Phdr *elf_pheader(struct Elf64_Ehdr *hdr) {
-	if (!hdr->e_phoff) {
-		return 0;
-	}
-
-	return (struct Elf64_Phdr *)((uint64_t)hdr + hdr->e_phoff);
-}
-static inline struct Elf64_Phdr *elf_segment(struct Elf64_Ehdr *hdr, int idx) {
-	uint64_t addr = (uint64_t)elf_pheader(hdr);
-	if (!addr) {
-		return 0;
-	}
-
-	return (struct Elf64_Phdr *)(addr + (hdr->e_phentsize * idx));
-}
-static inline struct Elf64_Shdr *elf_sheader(struct Elf64_Ehdr *hdr) {
-	if (!hdr->e_shoff) {
-		return 0;
-	}
-
-	return (struct Elf64_Shdr *)((uint64_t)hdr + hdr->e_shoff);
-}
-static inline struct Elf64_Shdr *elf_section(struct Elf64_Ehdr *hdr, int idx) {
-	uint64_t addr = (uint64_t)elf_sheader(hdr);
-	if (!addr) {
-		return 0;
-	}
-
-	return (struct Elf64_Shdr *)(addr + (hdr->e_shentsize * idx));
-}
-
 int elf_mapped_size(void *elf, uint64_t *msize) {
 	struct Elf64_Ehdr *ehdr = (struct Elf64_Ehdr *)elf;
 
@@ -96,7 +54,7 @@ int map_elf(void *elf, void *exec) {
 			struct Elf64_Phdr *phdr = elf_segment(ehdr, i);
 
 			if (phdr->p_filesz) {
-				c__memcpy((uint8_t *)exec + phdr->p_paddr, (uint8_t *)elf + phdr->p_offset, phdr->p_filesz);
+				memcpy((uint8_t *)exec + phdr->p_paddr, (uint8_t *)elf + phdr->p_offset, phdr->p_filesz);
 			}
 
 			if (phdr->p_memsz - phdr->p_filesz) {
@@ -113,7 +71,7 @@ int map_elf(void *elf, void *exec) {
 			}
 
 			if (shdr->sh_size) {
-				c__memcpy((uint8_t *)exec + shdr->sh_addr, (uint8_t *)elf + shdr->sh_offset, shdr->sh_size);
+				memcpy((uint8_t *)exec + shdr->sh_addr, (uint8_t *)elf + shdr->sh_offset, shdr->sh_size);
 			}
 		}
 	}
@@ -141,7 +99,7 @@ int relocate_elf(void *elf, void *exec) {
 				case R_X86_64_64:
 				case R_X86_64_JUMP_SLOT:
 				case R_X86_64_GLOB_DAT:
-					// todo: rest of the relocations
+					// not supported
 					break;
 				}
 			}

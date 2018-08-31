@@ -75,6 +75,6 @@ int sys_kern_rw(uint64_t address, void *data, uint64_t length, uint64_t write);
 #define SYS_CONSOLE_CMD_JAILBREAK    3
 int sys_console_cmd(uint64_t cmd, void *data);
 
-#define uprintf(fmt, ...) { /*char buffer[256]; snprintf(buffer, 256, fmt, ##__VA_ARGS__); sys_console_cmd(SYS_CONSOLE_CMD_PRINT, buffer);*/ }
+#define uprintf(fmt, ...) { char buffer[256]; snprintf(buffer, 256, fmt, ##__VA_ARGS__); sys_console_cmd(SYS_CONSOLE_CMD_PRINT, buffer); }
 
 #endif
