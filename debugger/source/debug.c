@@ -15,15 +15,12 @@ int debug_attach_handle(int fd, struct cmd_packet *packet) {
     if(ap) {
         r = ptrace(PT_ATTACH, ap->pid, NULL, NULL);
         if(r) {
-            uprintf("ptrace PT_ATTACH failed");
             net_send_status(fd, CMD_ERROR);
             return 1;    
         }
 
-        //wait4(ap->pid, NULL, NULL, NULL);
         r = ptrace(PT_CONTINUE, ap->pid, (void *)1, NULL);
         if(r) {
-            uprintf("ptrace PT_CONTINUE failed");
             net_send_status(fd, CMD_ERROR);
             return 1;    
         }
@@ -126,21 +123,24 @@ int debug_watchpt_handle(int fd, struct cmd_packet *packet) {
 
     nlwps = ptrace(PT_GETNUMLWPS, dbgctx.pid, NULL, 0);
     size = nlwps * sizeof(uint32_t);
-    lwpids = (uint32_t *)malloc(size);
+    lwpids = (uint32_t *)pfmalloc(size);
+    if(!lwpids) {
+        net_send_status(fd, CMD_DATA_NULL);
+        return 1;
+    }
     
     r = ptrace(PT_GETLWPLIST, dbgctx.pid, (void *)lwpids, nlwps);
     if (r == -1 && errno) {
         net_send_status(fd, CMD_ERROR);
-        return 1;
+        goto finish;
     }
 
     // get the current dr7
-    // todo: find a better way? we just use the first one
-
+    // TODO: find a better way? we just use the first one
     r = ptrace(PT_GETDBREGS, lwpids[0], &dbreg64, NULL);
     if (r == -1 && errno) {
         net_send_status(fd, CMD_ERROR);
-        return 1;
+        goto finish;
     }
 
     // setup the watchpoint
@@ -160,14 +160,16 @@ int debug_watchpt_handle(int fd, struct cmd_packet *packet) {
         r = ptrace(PT_SETDBREGS, lwpids[i], &dbreg64, NULL);
         if (r == -1 && errno) {
             net_send_status(fd, CMD_ERROR);
-            return 1;
+            goto finish;
         }
     }
 
     net_send_status(fd, CMD_SUCCESS);
-    free(lwpids);
 
-    return 0;
+finish:
+    free(lwpids);
+    
+    return r;
 }
 
 int debug_threads_handle(int fd, struct cmd_packet *packet) {
@@ -190,7 +192,11 @@ int debug_threads_handle(int fd, struct cmd_packet *packet) {
 
     // i assume the lwpid_t is 32 bits wide
     size = nlwps * sizeof(uint32_t);
-    lwpids = malloc(size);
+    lwpids = pfmalloc(size);
+    if(!lwpids) {
+        net_send_status(fd, CMD_DATA_NULL);
+        return 1;
+    }
     
     r = ptrace(PT_GETLWPLIST, dbgctx.pid, lwpids, nlwps);
     
@@ -495,12 +501,11 @@ void debug_cleanup() {
 
         // reset all debug registers
         nlwps = ptrace(PT_GETNUMLWPS, dbgctx.pid, NULL, 0);
-        lwpids = (uint32_t *)malloc(nlwps * sizeof(uint32_t));
+        lwpids = (uint32_t *)pfmalloc(nlwps * sizeof(uint32_t));
         if(lwpids) {
             memset(&dbreg64, NULL, sizeof(struct __dbreg64));
 
             r = ptrace(PT_GETLWPLIST, dbgctx.pid, (void *)lwpids, nlwps);
-            
             if(!r) {
                 for(int i = 0; i < nlwps; i++) {
                     ptrace(PT_SETDBREGS, lwpids[i], &dbreg64, NULL);

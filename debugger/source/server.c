@@ -5,9 +5,9 @@
 #include "server.h"
 
 int cmd_handler(int fd, struct cmd_packet *packet) {
-	if (!VALID_CMD(packet->cmd)) {
-		return 1;
-	}
+    if (!VALID_CMD(packet->cmd)) {
+        return 1;
+    }
 
     uprintf("cmd_handler %X", packet->cmd);
 
@@ -25,15 +25,14 @@ int cmd_handler(int fd, struct cmd_packet *packet) {
 }
 
 int check_debug_interrupt() {
-    char lwpinfo[0x98];
     struct debug_interrupt_packet *resp;
     struct debug_breakpoint *breakpoint;
+    struct ptrace_lwpinfo lwpinfo;
     uint8_t int3;
     int status;
     int signal;
     int r;
 
-    // todo: more checks
     if(wait4(dbgctx.pid, &status, WNOHANG, NULL)) {
         signal = WSTOPSIG(status);
 
@@ -60,16 +59,14 @@ int check_debug_interrupt() {
             return 1;
         }
 
-        // todo: make structure
-        ptrace(PT_LWPINFO, dbgctx.pid, lwpinfo, 0x98);
+        // grab interrupt data
+        ptrace(PT_LWPINFO, dbgctx.pid, &lwpinfo, sizeof(lwpinfo));
 
+        // fill response
         memset(resp, NULL, DEBUG_INTERRUPT_PACKET_SIZE);
-
-        char *cast = (char *)lwpinfo;
-        resp->lwpid = *(uint32_t *)cast;
+        resp->lwpid = lwpinfo.pl_lwpid;
         resp->status = status;
-        
-        memcpy(resp->tdname, (char *)(lwpinfo + 0x80), sizeof(resp->tdname));
+        memcpy(resp->tdname, lwpinfo.pl_tdname, sizeof(resp->tdname));
 
         ptrace(PT_GETREGS, resp->lwpid, &resp->reg64, NULL);
         //ptrace(PT_GETFPREGS, resp->lwpid, &resp->fpreg64, NULL);
@@ -91,19 +88,19 @@ int check_debug_interrupt() {
             // write old instruction
             sys_proc_rw(dbgctx.pid, breakpoint->address, &breakpoint->original, 1, 1);
 
-            // TODO: clean this up
-
+            // backstep 1 instruction
             resp->reg64.r_rip -= 1;
             ptrace(PT_SETREGS, resp->lwpid, &resp->reg64, NULL);
 
+            // single step over the instruction
             ptrace(PT_STEP, resp->lwpid, (void *)1, NULL);
-            
             while(!wait4(dbgctx.pid, &status, WNOHANG, NULL)) {
-                sceKernelUsleep(40000);
+                sceKernelUsleep(4000);
             }
 
-            //uprintf("waited for signal %i", WSTOPSIG(status));
+            uprintf("waited for signal %i", WSTOPSIG(status));
 
+            // set breakpoint again
             int3 = 0xCC;
             sys_proc_rw(dbgctx.pid, breakpoint->address, &int3, 1, 1);
         } else {
@@ -137,7 +134,7 @@ int handle_client(int fd, struct sockaddr_in *client) {
     // setup time val for select
     struct timeval tv;
     memset(&tv, NULL, sizeof(tv));
-    tv.tv_usec = 8000;
+    tv.tv_usec = 800;
 
     while(1) {
         // do a select
@@ -185,38 +182,38 @@ int handle_client(int fd, struct sockaddr_in *client) {
         uprintf("client packet recieved");
 
         // invalid packet
-		if (packet.magic != PACKET_MAGIC) {
+        if (packet.magic != PACKET_MAGIC) {
             uprintf("invalid packet magic %X!", packet.magic);
-			continue;
-		}
+            continue;
+        }
 
-		// mismatch received size
-		if (rsize != CMD_PACKET_SIZE) {
+        // mismatch received size
+        if (rsize != CMD_PACKET_SIZE) {
             uprintf("invalid recieve size %i!", rsize);
-			continue;
-		}
+            continue;
+        }
 
         length = packet.datalen;
-		if (length) {
-			// allocate data
-			data = malloc(length);
-			if (!data) {
-				goto error;
-			}
+        if (length) {
+            // allocate data
+            data = pfmalloc(length);
+            if (!data) {
+                goto error;
+            }
 
             uprintf("recieving data length %i", length);
 
-			// recv data
-			r = net_recv_data(fd, data, length, 1);
-			if (!r) {
-				goto error;
-			}
+            // recv data
+            r = net_recv_data(fd, data, length, 1);
+            if (!r) {
+                goto error;
+            }
 
-			// set data
-			packet.data = data;
-		} else {
-			packet.data = NULL;
-		}
+            // set data
+            packet.data = data;
+        } else {
+            packet.data = NULL;
+        }
 
         // TODO: check crc if there is one
         /*if(crc32(0, data, length) != packet.crc) {
@@ -224,18 +221,18 @@ int handle_client(int fd, struct sockaddr_in *client) {
             goto error;
         }*/
 
-		// handle the packet
-		r = cmd_handler(fd, &packet);
+        // handle the packet
+        r = cmd_handler(fd, &packet);
 
-    	if (data) {
-			free(data);
-			data = NULL;
-		}
+        if (data) {
+            free(data);
+            data = NULL;
+        }
 
-		// check cmd handler error
-		if (r) {
-			goto error;
-		}
+        // check cmd handler error
+        if (r) {
+            goto error;
+        }
     }
 
 error:
@@ -243,7 +240,7 @@ error:
     sceNetSocketClose(fd);
 
     // if there is a dbgctx then release it
-    // just like detach, we should clean this up
+    // TODO: just like detach, we should clean this up
     debug_cleanup();
 
     return 0;
@@ -254,7 +251,7 @@ void configure_socket(int fd) {
 
     flag = 1;
     sceNetSetsockopt(fd, SOL_SOCKET, SO_NBIO, (char *)&flag, sizeof(flag));
-
+    
     flag = 1;
     sceNetSetsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(flag));
 
@@ -262,11 +259,12 @@ void configure_socket(int fd) {
     sceNetSetsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, (char *)&flag, sizeof(flag));
 }
 
-void start_server() {
+int start_server() {
     struct sockaddr_in server;
     struct sockaddr_in client;
     int serv, fd;
     unsigned int len = sizeof(client);
+    int r;
 
     uprintf("server started");
 
@@ -278,14 +276,25 @@ void start_server() {
     memset(server.sin_zero, 0, sizeof(server.sin_zero));
 
     // start up server
-    // TODO: error checking
     serv = sceNetSocket("debugserver", AF_INET, SOCK_STREAM, 0);
+    if(serv < 0) {
+        uprintf("could not create socket!");
+        return 1;
+    }
 
     configure_socket(serv);
     
-    sceNetBind(serv, (struct sockaddr *)&server, sizeof(server));
+    r = sceNetBind(serv, (struct sockaddr *)&server, sizeof(server));
+    if(r) {
+        uprintf("bind failed!");
+        return 1;
+    }
     
-    sceNetListen(serv, 8);
+    r = sceNetListen(serv, 8);
+    if(r) {
+        uprintf("bind failed!");
+        return 1;
+    }
 
     while(1) {
         scePthreadYield();
@@ -295,10 +304,14 @@ void start_server() {
         if(fd > -1 && !errno) {
             uprintf("accepted a new client");
 
+            // TODO: add multi threading support
+            // I have to figure out how multi client support will work with debugging
             configure_socket(fd);
             handle_client(fd, &client);
         }
 
         sceKernelSleep(2);
     }
+
+    return 0;
 }

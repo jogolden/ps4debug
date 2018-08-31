@@ -3,4 +3,4 @@
 
 .global _start
 _start:
-	jmp _main
+    jmp _main

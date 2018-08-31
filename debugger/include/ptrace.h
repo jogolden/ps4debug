@@ -6,6 +6,7 @@
 #define _PTRACE_H
 
 #include <ps4.h>
+#include "sparse.h"
 #include "kdbg.h"
 
 // taken from ptrace.h
@@ -91,11 +92,16 @@
 #define SIGUSR2 31	/* user defined signal 2 */
 
 struct ptrace_io_desc {
-	int	piod_op;        /* I/O operation */
-	void *piod_offs;	/* child offset */
-	void *piod_addr;	/* parent offset */
-	uint64_t piod_len;	/* request length */
+    int	piod_op;        /* I/O operation */
+    void *piod_offs;	/* child offset */
+    void *piod_addr;	/* parent offset */
+    uint64_t piod_len;	/* request length */
 };
+
+TYPE_BEGIN(struct ptrace_lwpinfo, 0x98);
+TYPE_FIELD(uint32_t pl_lwpid, 0);
+TYPE_FIELD(char pl_tdname[40], 0x80);
+TYPE_END();
 
 int ptrace(int req, int pid, void *addr, int data);
 int wait4(int wpid, int *status, int options, void *rusage);

@@ -24,10 +24,17 @@ int kern_read_handle(int fd, struct cmd_packet *packet) {
     rp = (struct cmd_kern_read_packet *)packet->data;
 
     if(rp) {
-        data = malloc(rp->length);
+        data = pfmalloc(rp->length);
+        if(!data) {
+            net_send_status(fd, CMD_DATA_NULL);
+            return 1;
+        }
+        
         sys_kern_rw(rp->address, data, rp->length, 0);
+        
         net_send_status(fd, CMD_SUCCESS);
         net_send_data(fd, data, rp->length);
+
         free(data);
 
         return 0;
@@ -45,10 +52,17 @@ int kern_write_handle(int fd, struct cmd_packet *packet) {
     wp = (struct cmd_kern_write_packet *)packet->data;
 
     if(wp) {
-        data = malloc(wp->length);
-        net_recv_data(fd, data, wp->length, 1);
+        data = pfmalloc(wp->length);
+        if(!data) {
+            net_send_status(fd, CMD_DATA_NULL);
+            return 1;
+        }
+
+        net_recv_data(fd, data, wp->length, 1);  
         sys_kern_rw(wp->address, data, wp->length, 1);
+
         net_send_status(fd, CMD_SUCCESS);
+
         free(data);
 
         return 0;

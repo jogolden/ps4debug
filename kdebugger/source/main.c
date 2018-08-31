@@ -6,14 +6,14 @@
 #include "hooks.h"
 
 int _main(void) {
-	init_ksdk();
+    init_ksdk();
 
-	printf("[ps4debug] kernel base 0x%llX\n", get_kbase());
+    printf("[ps4debug] kernel base 0x%llX\n", get_kbase());
 
-	if(install_hooks()) {
-		printf("[ps4debug] failed to install hooks\n");
-		return 1;
-	}
+    if(install_hooks()) {
+        printf("[ps4debug] failed to install hooks\n");
+        return 1;
+    }
 
-	return 0;
+    return 0;
 }

@@ -5,14 +5,14 @@
 #include "hooks.h"
 
 inline void write_jmp(uint64_t address, uint64_t destination) {
-	// absolute jump
-	*(uint8_t *)(address) = 0xFF;
-	*(uint8_t *)(address + 1) = 0x25;
-	*(uint8_t *)(address + 2) = 0x00;
-	*(uint8_t *)(address + 3) = 0x00;
-	*(uint8_t *)(address + 4) = 0x00;
-	*(uint8_t *)(address + 5) = 0x00;
-	*(uint64_t *)(address + 6) = destination;
+    // absolute jump
+    *(uint8_t *)(address) = 0xFF;
+    *(uint8_t *)(address + 1) = 0x25;
+    *(uint8_t *)(address + 2) = 0x00;
+    *(uint8_t *)(address + 3) = 0x00;
+    *(uint8_t *)(address + 4) = 0x00;
+    *(uint8_t *)(address + 5) = 0x00;
+    *(uint64_t *)(address + 6) = destination;
 }
 
 int sys_proc_list(struct thread *td, struct sys_proc_list_args *uap) {
@@ -48,7 +48,7 @@ int sys_proc_list(struct thread *td, struct sys_proc_list_args *uap) {
                 break;
             }
         }
-	}
+    }
 
 finish:
     td->td_retval[0] = r;
@@ -93,7 +93,7 @@ int sys_proc_protect_handle(struct proc *p, struct sys_proc_protect_args *args) 
 
 int sys_proc_vm_map_handle(struct proc *p, struct sys_proc_vm_map_args *args) {
     struct vmspace *vm;
-	struct vm_map *map;
+    struct vm_map *map;
     struct vm_map_entry *entry;
 
     vm = p->p_vmspace;
@@ -130,7 +130,7 @@ int sys_proc_vm_map_handle(struct proc *p, struct sys_proc_vm_map_args *args) {
 int sys_proc_install_handle(struct proc *p, struct sys_proc_install_args *args) {
     void *stubaddr;
     uint64_t stubsize = sizeof(rpcstub);
-	stubsize += (PAGE_SIZE - (stubsize % PAGE_SIZE));
+    stubsize += (PAGE_SIZE - (stubsize % PAGE_SIZE));
 
     // allocate memory for the stub
     if(proc_allocate(p, &stubaddr, stubsize)) {
@@ -190,7 +190,7 @@ int sys_proc_call_handle(struct proc *p, struct sys_proc_call_args *args) {
 
 int sys_proc_elf_handle(struct proc *p, struct sys_proc_elf_args *args) {
     struct proc_vm_map_entry *entries;
-	uint64_t num_entries;
+    uint64_t num_entries;
     uint64_t entry;
 
     // load the elf into the process
@@ -317,35 +317,35 @@ int sys_console_cmd(struct thread *td, struct sys_console_cmd_args *uap) {
 }
 
 void hook_trap_fatal(struct trapframe *tf) {
-	// print registers
-	const char regnames[15][8] = { "rdi", "rsi", "rdx", "rcx", "r8", "r9", "rax", "rbx", "rbp", "r10", "r11", "r12", "r13", "r14", "r15" };
-	for(int i = 0; i < 15; i++) {
-		uint64_t rv = *(uint64_t *)((uint64_t)tf + (sizeof(uint64_t) * i));
-		printf("    %s %llX %i\n", regnames[i], rv, rv);
-	}
-	printf("    rip %llX %i\n", tf->tf_rip, tf->tf_rip);
-	printf("    rsp %llX %i\n", tf->tf_rsp, tf->tf_rsp);
+    // print registers
+    const char regnames[15][8] = { "rdi", "rsi", "rdx", "rcx", "r8", "r9", "rax", "rbx", "rbp", "r10", "r11", "r12", "r13", "r14", "r15" };
+    for(int i = 0; i < 15; i++) {
+        uint64_t rv = *(uint64_t *)((uint64_t)tf + (sizeof(uint64_t) * i));
+        printf("    %s %llX %i\n", regnames[i], rv, rv);
+    }
+    printf("    rip %llX %i\n", tf->tf_rip, tf->tf_rip);
+    printf("    rsp %llX %i\n", tf->tf_rsp, tf->tf_rsp);
 
-	uint64_t sp = 0;
-	if ((tf->tf_rsp & 3) == 3) {
-		sp = *(uint64_t *)(tf + 1);
-	} else {
-		sp = (uint64_t)(tf + 1);
-	}
+    uint64_t sp = 0;
+    if ((tf->tf_rsp & 3) == 3) {
+        sp = *(uint64_t *)(tf + 1);
+    } else {
+        sp = (uint64_t)(tf + 1);
+    }
 
-	// stack backtrace
-	uint64_t kernbase = get_kbase();
-	printf("kernelbase: 0x%llX\n", kernbase);
-	uint64_t backlog = 128;
-	printf("stack backtrace (0x%llX):\n", sp);
-	for (int i = 0; i < backlog; i++) {
-		uint64_t sv = *(uint64_t *)((sp - (backlog * sizeof(uint64_t))) + (i * sizeof(uint64_t)));
-		if (sv > kernbase) {
-			printf("    %i <kernbase>+0x%llX\n", i, sv - kernbase);
-		}
-	}
+    // stack backtrace
+    uint64_t kernbase = get_kbase();
+    printf("kernelbase: 0x%llX\n", kernbase);
+    uint64_t backlog = 128;
+    printf("stack backtrace (0x%llX):\n", sp);
+    for (int i = 0; i < backlog; i++) {
+        uint64_t sv = *(uint64_t *)((sp - (backlog * sizeof(uint64_t))) + (i * sizeof(uint64_t)));
+        if (sv > kernbase) {
+            printf("    %i <kernbase>+0x%llX\n", i, sv - kernbase);
+        }
+    }
 
-	kern_reboot(4);
+    kern_reboot(4);
 }
 
 void install_syscall(uint32_t n, void *func) {
@@ -362,7 +362,7 @@ int install_hooks() {
     // trap_fatal hook
     uint64_t kernbase = get_kbase();
     memcpy((void *)(kernbase + 0x1718D8), "\x4C\x89\xE7", 3); // mov rdi, r12
-	write_jmp(kernbase + 0x1718DB, (uint64_t)hook_trap_fatal);
+    write_jmp(kernbase + 0x1718DB, (uint64_t)hook_trap_fatal);
 
     // proc
     install_syscall(107, sys_proc_list);

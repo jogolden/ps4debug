@@ -8,6 +8,9 @@
 #include <ps4.h>
 #include <stdarg.h>
 
+void prefault(void *address, size_t size);
+void *pfmalloc(size_t size);
+
 // custom syscall 107
 struct proc_list_entry {
     char p_comm[32];
@@ -48,15 +51,15 @@ struct sys_proc_install_args {
 } __attribute__((packed));
 struct sys_proc_call_args {
     uint32_t pid;
-	uint64_t rpcstub;
+    uint64_t rpcstub;
     uint64_t rax;
-	uint64_t rip;
-	uint64_t rdi;
-	uint64_t rsi;
-	uint64_t rdx;
-	uint64_t rcx;
-	uint64_t r8;
-	uint64_t r9;
+    uint64_t rip;
+    uint64_t rdi;
+    uint64_t rsi;
+    uint64_t rdx;
+    uint64_t rcx;
+    uint64_t r8;
+    uint64_t r9;
 } __attribute__((packed));
 struct sys_proc_elf_args {
     void *elf;

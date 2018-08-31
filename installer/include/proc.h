@@ -12,11 +12,11 @@
 #define PAGE_SIZE 0x4000
 
 struct proc_vm_map_entry {
-	char name[32];
-	uint64_t start;
-	uint64_t end;
-	uint64_t offset;
-	uint16_t prot;
+    char name[32];
+    uint64_t start;
+    uint64_t end;
+    uint64_t offset;
+    uint16_t prot;
 } __attribute__((packed));
 
 struct proc *proc_find_by_name(const char *name);

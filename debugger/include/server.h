@@ -18,6 +18,6 @@
 #define SERVER_PORT             744
 
 void configure_socket(int fd);
-void start_server();
+int start_server();
 
 #endif

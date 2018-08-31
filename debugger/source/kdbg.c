@@ -4,6 +4,21 @@
 
 #include "kdbg.h"
 
+void prefault(void *address, size_t size) {
+    for(uint64_t i = 0; i < size; i++) {
+        volatile uint8_t c;
+        (void)c;
+        
+        c = ((char *)address)[i];
+    }
+}
+
+void *pfmalloc(size_t size) {
+    void *p = malloc(size);
+    prefault(p, size);
+    return p;
+}
+
 // custom syscall 107
 int sys_proc_list(struct proc_list_entry *procs, uint64_t *num) {
     return syscall(107, procs, num);

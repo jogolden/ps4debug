@@ -1,7 +1,5 @@
 # ps4debug
 
-Firmware 5.05 only! Google 'Debug Watch' (demo frontend I made) or join the discord and find the download.
-
 Join the PS4 Source Discord ... [https://discord.gg/WXgmWFh](https://discord.gg/WXgmWFh) and watch the [YouTube series on my channel](https://www.youtube.com/channel/UCpqeoSj_Bfip4v9OvWP_mIQ)!
 
 **golden <3**

@@ -6,10 +6,10 @@
 
 .globl syscall
 syscall:
-	xor rax, rax
+    xor rax, rax
 
 .globl syscall_macro
 syscall_macro:
-	mov r10, rcx
-	syscall
-	ret
+    mov r10, rcx
+    syscall
+    ret

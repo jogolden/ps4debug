@@ -59,142 +59,142 @@
 #define CMD_FATAL_STATUS(s) ((s >> 28) == 15)
 
 struct cmd_packet {
-	uint32_t magic;
-	uint32_t cmd;
-	uint32_t crc;
-	uint32_t datalen;
-	// (field not actually part of packet, comes after)
-	void *data;
+    uint32_t magic;
+    uint32_t cmd;
+    uint32_t crc;
+    uint32_t datalen;
+    // (field not actually part of packet, comes after)
+    void *data;
 } __attribute__((packed));
 #define CMD_PACKET_SIZE 16
 
 // proc
 struct cmd_proc_read_packet {
-	uint32_t pid;
-	uint64_t address;
-	uint32_t length;
+    uint32_t pid;
+    uint64_t address;
+    uint32_t length;
 } __attribute__((packed));
 #define CMD_PROC_READ_PACKET_SIZE 16
 
 struct cmd_proc_write_packet {
-	uint32_t pid;
-	uint64_t address;
-	uint32_t length;
+    uint32_t pid;
+    uint64_t address;
+    uint32_t length;
 } __attribute__((packed));
 #define CMD_PROC_WRITE_PACKET_SIZE 16
 
 struct cmd_proc_info_packet {
-	uint32_t pid;
+    uint32_t pid;
 } __attribute__((packed));
 #define CMD_PROC_INFO_PACKET_SIZE 4
 
 struct cmd_proc_install_packet {
-	uint32_t pid;
+    uint32_t pid;
 } __attribute__((packed));
 #define CMD_PROC_INSTALL_PACKET_SIZE 4
 
 struct cmd_proc_call_packet {
-	uint32_t pid;
-	uint64_t rpcstub;
-	uint64_t rpc_rip;
-	uint64_t rpc_rdi;
-	uint64_t rpc_rsi;
-	uint64_t rpc_rdx;
-	uint64_t rpc_rcx;
-	uint64_t rpc_r8;
-	uint64_t rpc_r9;
+    uint32_t pid;
+    uint64_t rpcstub;
+    uint64_t rpc_rip;
+    uint64_t rpc_rdi;
+    uint64_t rpc_rsi;
+    uint64_t rpc_rdx;
+    uint64_t rpc_rcx;
+    uint64_t rpc_r8;
+    uint64_t rpc_r9;
 } __attribute__((packed));
 struct cmd_proc_call_response {
-	uint32_t pid;
-	uint64_t rpc_rax;
+    uint32_t pid;
+    uint64_t rpc_rax;
 } __attribute__((packed));
 #define CMD_PROC_CALL_PACKET_SIZE 68
 #define CMD_PROC_CALL_RESPONSE_SIZE 12
 
 struct cmd_proc_elf_packet {
-	uint32_t pid;
-	uint32_t length;
+    uint32_t pid;
+    uint32_t length;
 } __attribute__((packed));
 #define CMD_PROC_ELF_PACKET_SIZE 8
 
 struct cmd_proc_protect_packet {
-	uint32_t pid;
-	uint64_t address;
-	uint32_t length;
-	uint32_t newprot;
+    uint32_t pid;
+    uint64_t address;
+    uint32_t length;
+    uint32_t newprot;
 } __attribute__((packed));
 #define CMD_PROC_PROTECT_PACKET_SIZE 20
 
 // debug
 struct cmd_debug_attach_packet {
-	uint32_t pid;
+    uint32_t pid;
 } __attribute__((packed));
 #define CMD_DEBUG_ATTACH_PACKET_SIZE 4
 
 struct cmd_debug_breakpt_packet {
-	uint32_t index;
-	uint32_t enabled;
-	uint64_t address;
+    uint32_t index;
+    uint32_t enabled;
+    uint64_t address;
 } __attribute__((packed));
 #define CMD_DEBUG_BREAKPT_PACKET_SIZE 16
 
 struct cmd_debug_watchpt_packet {
-	uint32_t index;
-	uint32_t enabled;
-	uint32_t length;
-	uint32_t breaktype;
-	uint64_t address;
+    uint32_t index;
+    uint32_t enabled;
+    uint32_t length;
+    uint32_t breaktype;
+    uint64_t address;
 } __attribute__((packed));
 #define CMD_DEBUG_WATCHPT_PACKET_SIZE 24
 
 struct cmd_debug_stopthr_packet {
-	uint32_t lwpid;
+    uint32_t lwpid;
 } __attribute__((packed));
 #define CMD_DEBUG_STOPTHR_PACKET_SIZE 4
 
 struct cmd_debug_resumethr_packet {
-	uint32_t lwpid;
+    uint32_t lwpid;
 } __attribute__((packed));
 #define CMD_DEBUG_RESUMETHR_PACKET_SIZE 4
 
 struct cmd_debug_getregs_packet {
-	uint32_t lwpid;
+    uint32_t lwpid;
 } __attribute__((packed));
 #define CMD_DEBUG_GETREGS_PACKET_SIZE 4
 
 struct cmd_debug_setregs_packet {
-	uint32_t lwpid;
-	uint32_t length;
+    uint32_t lwpid;
+    uint32_t length;
 } __attribute__((packed));
 #define CMD_DEBUG_SETREGS_PACKET_SIZE 8
 
 struct cmd_debug_stopgo_packet {
-	uint32_t stop;
+    uint32_t stop;
 } __attribute__((packed));
 #define CMD_DEBUG_STOPGO_PACKET_SIZE 4
 
 // kern
 struct cmd_kern_read_packet {
-	uint64_t address;
-	uint32_t length;
+    uint64_t address;
+    uint32_t length;
 } __attribute__((packed));
 #define CMD_KERN_READ_PACKET_SIZE 12
 
 struct cmd_kern_write_packet {
-	uint64_t address;
-	uint32_t length;
+    uint64_t address;
+    uint32_t length;
 } __attribute__((packed));
 #define CMD_KERN_WRITE_PACKET_SIZE 12
 
 // console
 struct cmd_console_print_packet {
-	uint32_t length;
+    uint32_t length;
 } __attribute__((packed));
 #define CMD_CONSOLE_PRINT_PACKET_SIZE 4
 
 struct cmd_console_notify_packet {
-	uint32_t messageType;
-	uint32_t length;
+    uint32_t messageType;
+    uint32_t length;
 } __attribute__((packed));
 #define CMD_CONSOLE_NOTIFY_PACKET_SIZE 8
 

@@ -64,10 +64,10 @@ struct __dbreg64 {
 };
 
 struct debug_interrupt_packet {
-	uint32_t lwpid;
-	uint32_t status;
-	char tdname[40];
-	struct __reg64 reg64;
+    uint32_t lwpid;
+    uint32_t status;
+    char tdname[40];
+    struct __reg64 reg64;
     struct __fpreg64 fpreg64;
     struct __dbreg64 dbreg64;
 } __attribute__((packed));

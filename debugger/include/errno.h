@@ -12,7 +12,7 @@
 #define	EBADF		9		/* Bad file descriptor */
 #define	ECHILD		10		/* No child processes */
 #define	EDEADLK		11		/* Resource deadlock avoided */
-					/* 11 was EAGAIN */
+                    /* 11 was EAGAIN */
 #define	ENOMEM		12		/* Cannot allocate memory */
 #define	EACCES		13		/* Permission denied */
 #define	EFAULT		14		/* Bad address */
