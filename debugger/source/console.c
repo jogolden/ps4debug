@@ -5,10 +5,13 @@
 #include "console.h"
 
 int console_reboot_handle(int fd, struct cmd_packet *packet) {
-    // if there is a dbgctx then release it
-    // just like detach, we should clean this up
-    debug_cleanup();
-    sceNetSocketClose(fd);
+    if(g_debugging) {
+        debug_cleanup(curdbgctx);
+
+        // close the socket, we are not about to call free_client
+        // this is a little hacky but meh
+        sceNetSocketClose(fd);
+    }
 
     sys_console_cmd(SYS_CONSOLE_CMD_REBOOT, NULL);
     return 1;

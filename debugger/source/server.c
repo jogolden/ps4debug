@@ -4,6 +4,28 @@
 
 #include "server.h"
 
+struct server_client servclients[SERVER_MAXCLIENTS];
+
+struct server_client *alloc_client() {
+    for(int i = 0; i < SERVER_MAXCLIENTS; i++) {
+        if(servclients[i].id == 0) {
+            servclients[i].id = i + 1;
+            return &servclients[i];
+        }
+    }
+
+    return NULL;
+}
+
+void free_client(struct server_client *svc) {
+    svc->id = 0;
+    sceNetSocketClose(svc->fd);
+
+    if(svc->debugging) {
+        debug_cleanup(&svc->dbgctx);
+    }
+}
+
 int cmd_handler(int fd, struct cmd_packet *packet) {
     if (!VALID_CMD(packet->cmd)) {
         return 1;
@@ -25,7 +47,7 @@ int cmd_handler(int fd, struct cmd_packet *packet) {
 }
 
 int check_debug_interrupt() {
-    struct debug_interrupt_packet *resp;
+    struct debug_interrupt_packet resp;
     struct debug_breakpoint *breakpoint;
     struct ptrace_lwpinfo lwpinfo;
     uint8_t int3;
@@ -33,108 +55,115 @@ int check_debug_interrupt() {
     int signal;
     int r;
 
-    if(wait4(dbgctx.pid, &status, WNOHANG, NULL)) {
-        signal = WSTOPSIG(status);
-
-        uprintf("check_debug_interrupt signal %i", signal);
-
-        if(signal == SIGSTOP) {
-            uprintf("passed on a SIGSTOP");
-            return 0;
-        } else if(signal == SIGKILL) {
-            // the process will die
-            ptrace(PT_CONTINUE, dbgctx.pid, (void *)1, SIGKILL);
-            
-            // tiny cleanup, since process is dead now do not call debug_cleanup()
-            sceNetSocketClose(dbgctx.clientfd);
-            dbgctx.pid = dbgctx.clientfd = -1;
-            
-            uprintf("sent final SIGKILL");
-            return 0;
-        }
-
-        resp = (struct debug_interrupt_packet *)malloc(DEBUG_INTERRUPT_PACKET_SIZE);
-        if(!resp) {
-            uprintf("could not allocate interrupt response");
-            return 1;
-        }
-
-        // grab interrupt data
-        ptrace(PT_LWPINFO, dbgctx.pid, &lwpinfo, sizeof(lwpinfo));
-
-        // fill response
-        memset(resp, NULL, DEBUG_INTERRUPT_PACKET_SIZE);
-        resp->lwpid = lwpinfo.pl_lwpid;
-        resp->status = status;
-        memcpy(resp->tdname, lwpinfo.pl_tdname, sizeof(resp->tdname));
-
-        ptrace(PT_GETREGS, resp->lwpid, &resp->reg64, NULL);
-        //ptrace(PT_GETFPREGS, resp->lwpid, &resp->fpreg64, NULL);
-        //ptrace(PT_GETDBREGS, resp->lwpid, &resp->dbreg64, NULL);
-        
-        // if it is a software breakpoint we need to handle it accordingly
-        breakpoint = NULL;
-        for(int i = 0; i < MAX_BREAKPOINTS; i++) {
-            if(dbgctx.breakpoints[i].address == resp->reg64.r_rip - 1) {
-                breakpoint = &dbgctx.breakpoints[i];
-                break;
-            }
-        }
-
-        if(breakpoint) {
-            uprintf("dealing with software breakpoint");
-            uprintf("breakpoint: %llX %X", breakpoint->address, breakpoint->original);
-
-            // write old instruction
-            sys_proc_rw(dbgctx.pid, breakpoint->address, &breakpoint->original, 1, 1);
-
-            // backstep 1 instruction
-            resp->reg64.r_rip -= 1;
-            ptrace(PT_SETREGS, resp->lwpid, &resp->reg64, NULL);
-
-            // single step over the instruction
-            ptrace(PT_STEP, resp->lwpid, (void *)1, NULL);
-            while(!wait4(dbgctx.pid, &status, WNOHANG, NULL)) {
-                sceKernelUsleep(4000);
-            }
-
-            uprintf("waited for signal %i", WSTOPSIG(status));
-
-            // set breakpoint again
-            int3 = 0xCC;
-            sys_proc_rw(dbgctx.pid, breakpoint->address, &int3, 1, 1);
-        } else {
-            uprintf("dealing with hardware breakpoint");
-        }
-        
-        r = net_send_data(dbgctx.clientfd, resp, DEBUG_INTERRUPT_PACKET_SIZE);
-        if(r != DEBUG_INTERRUPT_PACKET_SIZE) {
-            uprintf("net_send_data failed %i %i", r, errno);
-        }
-        
-        uprintf("check_debug_interrupt interrupt data sent");
-
-        free(resp);
+    r = wait4(curdbgctx->pid, &status, WNOHANG, NULL);
+    if(!r) {
+        return 0;
     }
+
+    signal = WSTOPSIG(status);
+    uprintf("check_debug_interrupt signal %i", signal);
+
+    if(signal == SIGSTOP) {
+        uprintf("passed on a SIGSTOP");
+        return 0;
+    } else if(signal == SIGKILL) {
+        debug_cleanup(curdbgctx);
+
+        // the process will die
+        ptrace(PT_CONTINUE, curdbgctx->pid, (void *)1, SIGKILL);
+
+        uprintf("sent final SIGKILL");
+        return 0;
+    }
+
+    uprintf("sizeof(struct ptrace_lwpinfo) %X", sizeof(struct ptrace_lwpinfo));
+
+    // grab interrupt data
+    r = ptrace(PT_LWPINFO, curdbgctx->pid, &lwpinfo, sizeof(struct ptrace_lwpinfo));
+    if(r) {
+        uprintf("could not get lwpinfo errno %i", errno);
+    }
+
+    // fill response
+    memset(&resp, NULL, DEBUG_INTERRUPT_PACKET_SIZE);
+    resp.lwpid = lwpinfo.pl_lwpid;
+    resp.status = status;
+    memcpy(resp.tdname, lwpinfo.pl_tdname, sizeof(resp.tdname));
+
+    r = ptrace(PT_GETREGS, resp.lwpid, &resp.reg64, NULL);
+    if(r) {
+        uprintf("could not get registers errno %i", errno);
+    }
+
+    r = ptrace(PT_GETFPREGS, resp.lwpid, &resp.savefpu, NULL);
+    if(r) {
+        uprintf("could not get float registers errno %i", errno);
+    }
+    
+    r = ptrace(PT_GETDBREGS, resp.lwpid, &resp.dbreg64, NULL);
+    if(r) {
+        uprintf("could not get debug registers errno %i", errno);
+    }
+
+    // if it is a software breakpoint we need to handle it accordingly
+    breakpoint = NULL;
+    for(int i = 0; i < MAX_BREAKPOINTS; i++) {
+        if(curdbgctx->breakpoints[i].address == resp.reg64.r_rip - 1) {
+            breakpoint = &curdbgctx->breakpoints[i];
+            break;
+        }
+    }
+
+    if(breakpoint) {
+        uprintf("dealing with software breakpoint");
+        uprintf("breakpoint: %llX %X", breakpoint->address, breakpoint->original);
+
+        // write old instruction
+        sys_proc_rw(curdbgctx->pid, breakpoint->address, &breakpoint->original, 1, 1);
+
+        // backstep 1 instruction
+        resp.reg64.r_rip -= 1;
+        ptrace(PT_SETREGS, resp.lwpid, &resp.reg64, NULL);
+
+        // single step over the instruction
+        ptrace(PT_STEP, resp.lwpid, (void *)1, NULL);
+        while(!wait4(curdbgctx->pid, &status, WNOHANG, NULL)) {
+            sceKernelUsleep(4000);
+        }
+
+        uprintf("waited for signal %i", WSTOPSIG(status));
+
+        // set breakpoint again
+        int3 = 0xCC;
+        sys_proc_rw(curdbgctx->pid, breakpoint->address, &int3, 1, 1);
+    } else {
+        uprintf("dealing with hardware breakpoint");
+    }
+
+    r = net_send_data(curdbgctx->dbgfd, &resp, DEBUG_INTERRUPT_PACKET_SIZE);
+    if(r != DEBUG_INTERRUPT_PACKET_SIZE) {
+        uprintf("net_send_data failed %i %i", r, errno);
+    }
+
+    uprintf("check_debug_interrupt interrupt data sent");
 
     return 0;
 }
 
-int handle_client(int fd, struct sockaddr_in *client) {
+int handle_client(struct server_client *svc) {
     struct cmd_packet packet;
     uint32_t rsize;
     uint32_t length;
     void *data;
+    int fd;
     int r;
 
-    // setup debug context client data
-    dbgctx.pid = dbgctx.clientfd = -1;
-    memcpy(&dbgctx.client, client, sizeof(struct sockaddr_in));
+    fd = svc->fd;
 
     // setup time val for select
     struct timeval tv;
     memset(&tv, NULL, sizeof(tv));
-    tv.tv_usec = 800;
+    tv.tv_usec = 1000;
 
     while(1) {
         // do a select
@@ -164,12 +193,12 @@ int handle_client(int fd, struct sockaddr_in *client) {
         } else {
             // if we have a valid debugger context then check for interrupt
             // this does not block, as wait is called with option WNOHANG
-            if(dbgctx.pid != -1 && dbgctx.clientfd != -1) {
+            if(svc->debugging) {
                 if(check_debug_interrupt()) {
                     goto error;
                 }
             }
-            
+
             // check if disconnected
             if (errno == ECONNRESET) {
                 goto error;
@@ -221,6 +250,13 @@ int handle_client(int fd, struct sockaddr_in *client) {
             goto error;
         }*/
 
+        // special case when attaching
+        // if we are debugging then the handler for CMD_DEBUG_ATTACH will send back the right error
+        if(!g_debugging && packet.cmd == CMD_DEBUG_ATTACH) {
+            curdbgcli = svc;
+            curdbgctx = &svc->dbgctx;
+        }
+
         // handle the packet
         r = cmd_handler(fd, &packet);
 
@@ -236,12 +272,8 @@ int handle_client(int fd, struct sockaddr_in *client) {
     }
 
 error:
-    uprintf("client disconnected errno: %i", errno);
-    sceNetSocketClose(fd);
-
-    // if there is a dbgctx then release it
-    // TODO: just like detach, we should clean this up
-    debug_cleanup();
+    uprintf("client disconnected");
+    free_client(svc);
 
     return 0;
 }
@@ -251,7 +283,7 @@ void configure_socket(int fd) {
 
     flag = 1;
     sceNetSetsockopt(fd, SOL_SOCKET, SO_NBIO, (char *)&flag, sizeof(flag));
-    
+
     flag = 1;
     sceNetSetsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(flag));
 
@@ -262,8 +294,9 @@ void configure_socket(int fd) {
 int start_server() {
     struct sockaddr_in server;
     struct sockaddr_in client;
-    int serv, fd;
+    struct server_client *svc;
     unsigned int len = sizeof(client);
+    int serv, fd;
     int r;
 
     uprintf("server started");
@@ -283,18 +316,26 @@ int start_server() {
     }
 
     configure_socket(serv);
-    
+
     r = sceNetBind(serv, (struct sockaddr *)&server, sizeof(server));
     if(r) {
         uprintf("bind failed!");
         return 1;
     }
-    
-    r = sceNetListen(serv, 8);
+
+    r = sceNetListen(serv, SERVER_MAXCLIENTS * 2);
     if(r) {
         uprintf("bind failed!");
         return 1;
     }
+
+    // reset clients
+    memset(servclients, NULL, sizeof(struct server_client) * SERVER_MAXCLIENTS);
+
+    // reset debugging stuff
+    g_debugging = 0;
+    curdbgcli = NULL;
+    curdbgctx = NULL;
 
     while(1) {
         scePthreadYield();
@@ -304,10 +345,21 @@ int start_server() {
         if(fd > -1 && !errno) {
             uprintf("accepted a new client");
 
-            // TODO: add multi threading support
-            // I have to figure out how multi client support will work with debugging
+            svc = alloc_client();
+            if(!svc) {
+                uprintf("server can not accept anymore clients");
+                continue;
+            }
+
             configure_socket(fd);
-            handle_client(fd, &client);
+
+            svc->fd = fd;
+            svc->debugging = 0;
+            memcpy(&svc->client, &client, sizeof(svc->client));
+            memset(&svc->dbgctx, NULL, sizeof(svc->dbgctx));
+
+            ScePthread thread;
+            scePthreadCreate(&thread, NULL, (void * (*)(void *))handle_client, (void *)svc, "clienthandler");
         }
 
         sceKernelSleep(2);

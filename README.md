@@ -1,8 +1,28 @@
 # ps4debug
+This is a debugger for the PlayStation 4. Yes thats right! Look around and you will find some very useful tools online or on the PS4 Source Discord channel. Anything is possible, except kernel mode debugging, which I decided to leave out.
 
-Join the PS4 Source Discord ... [https://discord.gg/WXgmWFh](https://discord.gg/WXgmWFh) and watch the [YouTube series on my channel](https://www.youtube.com/channel/UCpqeoSj_Bfip4v9OvWP_mIQ)!
+### Quickstart Guide
+Before you do anything, haha, I would recommend joining the PS4 Source Discord: [https://discord.gg/WXgmWFh](https://discord.gg/WXgmWFh). There are tons of members willing to help anyone, and we even have a specific channel for debugger help. I am going to try to give you a little rundown on how to use ps4debug....
+1. Download Debug Watch or another debugging tool, checkout the discord for downloads
+2. Load the latest version of `ps4debug.bin` on the console (on the release page)
+3. I recommend just loading ps4debug and your choice of HEN
+4. Start your favorite game!
+5. Attach to the game (or userland process)
+6. Start messing around with your debugging tool, try to find a bug for me!
+7. Make l33t hacks.
 
-**golden <3**
+### Contributing
+If you want to contribute, then feel free to make a pull request or open an issue with a bug that you have found! I am always in need of people to test for me. Join the PS4 Source Discord and look for golden. Also I need someone that is good at writing to spiff up this readme document. I am always in need of people to do work! It seems like I do everything...
 
-Twitter [@cloverleafswag3](https://twitter.com/cloverleafswag3)  
-psxhax [g991](https://www.psxhax.com/members/g991.473299/)
+### Coming Soon
+1. Multi client support for ps4debug (useful for tools + debugger at the same time etc)
+2. Fix error handling, add more error handling, and better error alerts
+3. Speed up networking code and add checksum
+4. Binary memory scanning on ps4 side (then a C# abstraction for all types)
+5. Allocate and free memory commands
+6. Remote Procedure Calling (half way there)
+7. Better C# library (but this is coming along as I work on everything else)
+8. Automatic UDP broadcast messages, no more typing in console ip address
+
+##### Created by **golden**, Twitter [@cloverleafswag3](https://twitter.com/cloverleafswag3)
+###### Shout out to ChendoChap, berkayylmao, 2much4u, idc, and zecoxao!

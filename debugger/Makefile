@@ -22,20 +22,20 @@ LIBS	:= -lPS4
 TARGET = debugger.bin
 
 $(TARGET): $(ODIR) $(OBJS)
-    $(CC) $(LIBPS4)/crt0.s $(ODIR)/*.o -o temp.t $(CFLAGS) $(LFLAGS) $(LIBS)
-    $(OBJCOPY) -O binary temp.t $(TARGET)
-    rm -f temp.t
+	$(CC) $(LIBPS4)/crt0.s $(ODIR)/*.o -o temp.t $(CFLAGS) $(LFLAGS) $(LIBS)
+	$(OBJCOPY) -O binary temp.t $(TARGET)
+	rm -f temp.t
 
 $(ODIR)/%.o: $(SDIR)/%.c
-    $(CC) -c -o $@ $< $(CFLAGS)
+	$(CC) -c -o $@ $< $(CFLAGS)
 
 $(ODIR)/%.o: $(SDIR)/%.s
-    $(AS) -c -o $@ $< $(SFLAGS)
+	$(AS) -c -o $@ $< $(SFLAGS)
 
 $(ODIR):
-    @mkdir $@
+	@mkdir $@
 
 .PHONY: clean
 
 clean:
-    rm -f $(TARGET) $(ODIR)/*.o
+	rm -f $(TARGET) $(ODIR)/*.o

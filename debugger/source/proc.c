@@ -225,7 +225,22 @@ int proc_elf_handle(int fd, struct cmd_packet *packet) {
 }
 
 int proc_protect_handle(int fd, struct cmd_packet *packet) {
-    __asm("int 3");
+    struct cmd_proc_protect_packet *pp;
+    struct sys_proc_protect_args args;
+
+    pp = (struct cmd_proc_protect_packet *)packet->data;
+
+    if(pp) {
+        args.address = pp->address;
+        args.length = pp->length;
+        args.prot = pp->newprot;
+        sys_proc_cmd(pp->pid,SYS_PROC_PROTECT, &args);
+        
+        net_send_status(fd, CMD_SUCCESS);
+    }
+    
+    net_send_status(fd, CMD_DATA_NULL);
+
     return 0;
 }
 

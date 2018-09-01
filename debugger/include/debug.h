@@ -10,14 +10,6 @@
 #include "net.h"
 #include "ptrace.h"
 
-#define MAX_BREAKPOINTS 10
-
-struct debug_breakpoint {
-    uint32_t enabled;
-    uint64_t address;
-    uint8_t original;
-};
-
 struct __reg64 {
     uint64_t r_r15;
     uint64_t r_r14;
@@ -47,12 +39,64 @@ struct __reg64 {
     uint64_t r_ss;
 };
 
-struct __fpreg64 {
-    uint64_t fpr_env[4];
-    uint8_t	fpr_acc[8][16];
-    uint8_t	fpr_xacc[16][16];
-    uint64_t fpr_spare[12];
+/* Contents of each x87 floating point accumulator */
+struct fpacc87 {
+    uint8_t fp_bytes[10];
 };
+
+/* Contents of each SSE extended accumulator */
+struct xmmacc {
+    uint8_t xmm_bytes[16];
+};
+
+/* Contents of the upper 16 bytes of each AVX extended accumulator */
+struct ymmacc {
+    uint8_t ymm_bytes[16];
+};
+
+struct envxmm {
+    uint16_t en_cw; /* control word (16bits) */
+    uint16_t en_sw; /* status word (16bits) */
+    uint8_t en_tw; /* tag word (8bits) */
+    uint8_t en_zero;
+    uint16_t en_opcode; /* opcode last executed (11 bits ) */
+    uint64_t en_rip; /* floating point instruction pointer */
+    uint64_t en_rdp; /* floating operand pointer */
+    uint32_t en_mxcsr; /* SSE sontorol/status register */
+    uint32_t en_mxcsr_mask; /* valid bits in mxcsr */
+};
+
+struct savefpu {
+    struct envxmm sv_env;
+    struct {
+        struct fpacc87 fp_acc;
+        uint8_t fp_pad[6]; /* padding */
+    } sv_fp[8];
+    struct xmmacc sv_xmm[16];
+    uint8_t sv_pad[96];
+} __attribute__((aligned(16)));
+
+struct xstate_hdr {
+    uint64_t xstate_bv;
+    uint8_t xstate_rsrv0[16];
+    uint8_t xstate_rsrv[40];
+};
+
+struct savefpu_xstate {
+    struct xstate_hdr sx_hd;
+    struct ymmacc sx_ymm[16];
+};
+
+struct savefpu_ymm {
+    struct envxmm sv_env;
+    struct {
+        struct fpacc87 fp_acc;
+        int8_t fp_pad[6];   /* padding */
+    } sv_fp[8];
+    struct xmmacc sv_xmm[16];
+    uint8_t sv_pad[96];
+    struct savefpu_xstate sv_xstate;
+} __attribute__((aligned(64)));
 
 struct __dbreg64 {
     uint64_t dr[16];	/* debug registers */
@@ -68,10 +112,10 @@ struct debug_interrupt_packet {
     uint32_t status;
     char tdname[40];
     struct __reg64 reg64;
-    struct __fpreg64 fpreg64;
+    struct savefpu_ymm savefpu;
     struct __dbreg64 dbreg64;
 } __attribute__((packed));
-#define DEBUG_INTERRUPT_PACKET_SIZE         0x360
+#define DEBUG_INTERRUPT_PACKET_SIZE         0x4A0
 
 #define	DBREG_DR7_DISABLE       0x00
 #define	DBREG_DR7_LOCAL_ENABLE  0x01
@@ -95,16 +139,11 @@ struct debug_interrupt_packet {
 
 #define	DBREG_DRX(d,x) ((d)->dr[(x)]) /* reference dr0 - dr7 by register number */
 
-#define DBG_PORT 755
+#define DEBUG_PORT 755
 
-struct debug_context {
-    int pid;
-    struct sockaddr_in client;
-    int clientfd;
-    struct debug_breakpoint breakpoints[MAX_BREAKPOINTS];
-};
-
-extern struct debug_context dbgctx;
+extern int g_debugging;
+extern struct server_client *curdbgcli;
+extern struct debug_context *curdbgctx;
 
 int debug_attach_handle(int fd, struct cmd_packet *packet);
 int debug_detach_handle(int fd, struct cmd_packet *packet);
@@ -115,14 +154,14 @@ int debug_stopthr_handle(int fd, struct cmd_packet *packet);
 int debug_resumethr_handle(int fd, struct cmd_packet *packet);
 int debug_getregs_handle(int fd, struct cmd_packet *packet);
 int debug_setregs_handle(int fd, struct cmd_packet *packet);
-int debug_getfregs_handle(int fd, struct cmd_packet *packet);
-int debug_setfregs_handle(int fd, struct cmd_packet *packet);
+int debug_getfpregs_handle(int fd, struct cmd_packet *packet);
+int debug_setfpregs_handle(int fd, struct cmd_packet *packet);
 int debug_getdbregs_handle(int fd, struct cmd_packet *packet);
 int debug_setdbregs_handle(int fd, struct cmd_packet *packet);
 int debug_start_run_handle(int fd, struct cmd_packet *packet);
 
-int connect_debugger();
-void debug_cleanup();
+int connect_debugger(struct debug_context *dbgctx, struct sockaddr_in *client);
+void debug_cleanup(struct debug_context *dbgctx);
 
 int debug_handle(int fd, struct cmd_packet *packet);
 

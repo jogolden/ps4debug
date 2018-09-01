@@ -4,11 +4,18 @@
 
 #include "debug.h"
 
-struct debug_context dbgctx;
+int g_debugging;
+struct server_client *curdbgcli;
+struct debug_context *curdbgctx;
 
 int debug_attach_handle(int fd, struct cmd_packet *packet) {
     struct cmd_debug_attach_packet *ap;
     int r;
+
+    if(g_debugging) {
+        net_send_status(fd, CMD_ALREADY_DEBUG);
+        return 1;
+    }
 
     ap = (struct cmd_debug_attach_packet *)packet->data;
 
@@ -16,25 +23,25 @@ int debug_attach_handle(int fd, struct cmd_packet *packet) {
         r = ptrace(PT_ATTACH, ap->pid, NULL, NULL);
         if(r) {
             net_send_status(fd, CMD_ERROR);
-            return 1;    
+            return 1;
         }
 
         r = ptrace(PT_CONTINUE, ap->pid, (void *)1, NULL);
         if(r) {
             net_send_status(fd, CMD_ERROR);
-            return 1;    
+            return 1;
         }
 
-        dbgctx.pid = ap->pid;
-        memset(dbgctx.breakpoints, NULL, sizeof(dbgctx.breakpoints));
-
         // connect to server
-        r = connect_debugger();
+        r = connect_debugger(curdbgctx, &curdbgcli->client);
         if(r) {
             uprintf("could not connect to server");
             net_send_status(fd, CMD_ERROR);
-            return 1;    
+            return 1;
         }
+
+        curdbgcli->debugging = 1;
+        curdbgctx->pid = ap->pid;
 
         uprintf("debugger is attached");
 
@@ -49,7 +56,7 @@ int debug_attach_handle(int fd, struct cmd_packet *packet) {
 }
 
 int debug_detach_handle(int fd, struct cmd_packet *packet) {
-    debug_cleanup();
+    debug_cleanup(curdbgctx);
 
     net_send_status(fd, CMD_SUCCESS);
 
@@ -61,8 +68,8 @@ int debug_breakpt_handle(int fd, struct cmd_packet *packet) {
     uint8_t int3;
 
     bp = (struct cmd_debug_breakpt_packet *)packet->data;
-    
-    if (dbgctx.pid == -1) {
+
+    if (curdbgctx->pid == 0) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
@@ -77,18 +84,18 @@ int debug_breakpt_handle(int fd, struct cmd_packet *packet) {
         return 1;
     }
 
-    struct debug_breakpoint *breakpoint = &dbgctx.breakpoints[bp->index];
+    struct debug_breakpoint *breakpoint = &curdbgctx->breakpoints[bp->index];
 
     if(bp->enabled) {
         breakpoint->enabled = 1;
         breakpoint->address = bp->address;
 
-        sys_proc_rw(dbgctx.pid, breakpoint->address, &breakpoint->original, 1, 0);
+        sys_proc_rw(curdbgctx->pid, breakpoint->address, &breakpoint->original, 1, 0);
 
         int3 = 0xCC;
-        sys_proc_rw(dbgctx.pid, breakpoint->address, &int3, 1, 1);
+        sys_proc_rw(curdbgctx->pid, breakpoint->address, &int3, 1, 1);
     } else {
-        sys_proc_rw(dbgctx.pid, breakpoint->address, &breakpoint->original, 1, 1);
+        sys_proc_rw(curdbgctx->pid, breakpoint->address, &breakpoint->original, 1, 1);
 
         breakpoint->enabled = 0;
         breakpoint->address = NULL;
@@ -108,8 +115,8 @@ int debug_watchpt_handle(int fd, struct cmd_packet *packet) {
     int size;
 
     wp = (struct cmd_debug_watchpt_packet *)packet->data;
-    
-    if (dbgctx.pid == -1) {
+
+    if (curdbgctx->pid == 0) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
@@ -121,15 +128,15 @@ int debug_watchpt_handle(int fd, struct cmd_packet *packet) {
 
     // get the threads
 
-    nlwps = ptrace(PT_GETNUMLWPS, dbgctx.pid, NULL, 0);
+    nlwps = ptrace(PT_GETNUMLWPS, curdbgctx->pid, NULL, 0);
     size = nlwps * sizeof(uint32_t);
     lwpids = (uint32_t *)pfmalloc(size);
     if(!lwpids) {
         net_send_status(fd, CMD_DATA_NULL);
         return 1;
     }
-    
-    r = ptrace(PT_GETLWPLIST, dbgctx.pid, (void *)lwpids, nlwps);
+
+    r = ptrace(PT_GETLWPLIST, curdbgctx->pid, (void *)lwpids, nlwps);
     if (r == -1 && errno) {
         net_send_status(fd, CMD_ERROR);
         goto finish;
@@ -168,7 +175,7 @@ int debug_watchpt_handle(int fd, struct cmd_packet *packet) {
 
 finish:
     free(lwpids);
-    
+
     return r;
 }
 
@@ -178,12 +185,12 @@ int debug_threads_handle(int fd, struct cmd_packet *packet) {
     int r;
     int size;
 
-    if (dbgctx.pid == -1) {
+    if (curdbgctx->pid == 0) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
 
-    nlwps = ptrace(PT_GETNUMLWPS, dbgctx.pid, NULL, 0);
+    nlwps = ptrace(PT_GETNUMLWPS, curdbgctx->pid, NULL, 0);
 
     if(nlwps == -1) {
         net_send_status(fd, CMD_ERROR);
@@ -197,9 +204,9 @@ int debug_threads_handle(int fd, struct cmd_packet *packet) {
         net_send_status(fd, CMD_DATA_NULL);
         return 1;
     }
-    
-    r = ptrace(PT_GETLWPLIST, dbgctx.pid, lwpids, nlwps);
-    
+
+    r = ptrace(PT_GETLWPLIST, curdbgctx->pid, lwpids, nlwps);
+
     if(r == -1) {
         net_send_status(fd, CMD_ERROR);
         return 0;
@@ -220,7 +227,7 @@ int debug_stopthr_handle(int fd, struct cmd_packet *packet) {
 
     sp = (struct cmd_debug_stopthr_packet *)packet->data;
 
-    if(dbgctx.pid == -1) {
+    if(curdbgctx->pid == 0) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
@@ -247,7 +254,7 @@ int debug_resumethr_handle(int fd, struct cmd_packet *packet) {
 
     rp = (struct cmd_debug_resumethr_packet *)packet->data;
 
-    if(dbgctx.pid == -1) {
+    if(curdbgctx->pid == 0) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
@@ -275,7 +282,7 @@ int debug_getregs_handle(int fd, struct cmd_packet *packet) {
 
     rp = (struct cmd_debug_getregs_packet *)packet->data;
 
-    if (dbgctx.pid == -1) {
+    if (curdbgctx->pid == 0) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
@@ -284,7 +291,7 @@ int debug_getregs_handle(int fd, struct cmd_packet *packet) {
         net_send_status(fd, CMD_DATA_NULL);
         return 1;
     }
-    
+
     r = ptrace(PT_GETREGS, rp->lwpid, &reg64, NULL);
     if (r == -1 && errno) {
         net_send_status(fd, CMD_ERROR);
@@ -297,31 +304,31 @@ int debug_getregs_handle(int fd, struct cmd_packet *packet) {
     return 0;
 }
 
-int debug_getfregs_handle(int fd, struct cmd_packet *packet) {
+int debug_getfpregs_handle(int fd, struct cmd_packet *packet) {
     struct cmd_debug_getregs_packet *rp;
-    struct __fpreg64 fpreg64;
+    struct savefpu_ymm savefpu;
     int r;
 
     rp = (struct cmd_debug_getregs_packet *)packet->data;
 
-    if (dbgctx.pid == -1) {
+    if (curdbgctx->pid == 0) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
-    
+
     if(!rp) {
         net_send_status(fd, CMD_DATA_NULL);
         return 1;
     }
 
-    r = ptrace(PT_GETFPREGS, rp->lwpid, &fpreg64, NULL);
+    r = ptrace(PT_GETFPREGS, rp->lwpid, &savefpu, NULL);
     if (r == -1 && errno) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
 
     net_send_status(fd, CMD_SUCCESS);
-    net_send_data(fd, &fpreg64, sizeof(struct __fpreg64));
+    net_send_data(fd, &savefpu, sizeof(struct savefpu_ymm));
 
     return 0;
 }
@@ -333,7 +340,7 @@ int debug_getdbregs_handle(int fd, struct cmd_packet *packet) {
 
     rp = (struct cmd_debug_getregs_packet *)packet->data;
 
-    if (dbgctx.pid == -1) {
+    if (curdbgctx->pid == 0) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
@@ -348,7 +355,7 @@ int debug_getdbregs_handle(int fd, struct cmd_packet *packet) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
-    
+
     net_send_status(fd, CMD_SUCCESS);
     net_send_data(fd, &dbreg64, sizeof(struct __dbreg64));
 
@@ -356,21 +363,25 @@ int debug_getdbregs_handle(int fd, struct cmd_packet *packet) {
 }
 
 int debug_setregs_handle(int fd, struct cmd_packet *packet) {
-    struct __reg64 *reg64;
+    struct cmd_debug_setregs_packet *sp;
+    struct __reg64 reg64;
     int r;
 
-    if (dbgctx.pid == -1) {
+    if (curdbgctx->pid == 0) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
 
-    reg64 = (struct __reg64 *)packet->data;
-    if (!reg64) {
+    sp = (struct cmd_debug_setregs_packet *)packet->data;
+    if (!sp) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
 
-    r = ptrace(PT_SETREGS, dbgctx.pid, reg64, NULL);
+    net_send_status(fd, CMD_SUCCESS);
+    net_recv_data(fd, &reg64, sp->length, 1);
+
+    r = ptrace(PT_SETREGS, curdbgctx->pid, &reg64, NULL);
     if (r == -1 && errno) {
         net_send_status(fd, CMD_ERROR);
         return 1;
@@ -381,22 +392,26 @@ int debug_setregs_handle(int fd, struct cmd_packet *packet) {
     return 0;
 }
 
-int debug_setfregs_handle(int fd, struct cmd_packet *packet) {
-    struct __fpreg64 *fpreg64;
+int debug_setfpregs_handle(int fd, struct cmd_packet *packet) {
+    struct cmd_debug_setregs_packet *sp;
+    struct savefpu_ymm *fpregs;
     int r;
 
-    if (dbgctx.pid == -1) {
+    if (curdbgctx->pid == 0) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
 
-    fpreg64 = (struct __fpreg64 *)packet->data;
-    if (!fpreg64) {
+    sp = (struct cmd_debug_setregs_packet *)packet->data;
+    if (!sp) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
 
-    r = ptrace(PT_SETFPREGS, dbgctx.pid, fpreg64, NULL);
+    net_send_status(fd, CMD_SUCCESS);
+    net_recv_data(fd, &fpregs, sp->length, 1);
+
+    r = ptrace(PT_SETFPREGS, curdbgctx->pid, fpregs, NULL);
     if (r == -1 && errno) {
         net_send_status(fd, CMD_ERROR);
         return 1;
@@ -408,21 +423,25 @@ int debug_setfregs_handle(int fd, struct cmd_packet *packet) {
 }
 
 int debug_setdbregs_handle(int fd, struct cmd_packet *packet) {
-    struct __dbreg64 *dbreg64;
+    struct cmd_debug_setregs_packet *sp;
+    struct __dbreg64 dbreg64;
     int r;
 
-    if (dbgctx.pid == -1) {
+    if (curdbgctx->pid == 0) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
 
-    dbreg64 = (struct __dbreg64 *)packet->data;
-    if (!dbreg64) {
+    sp = (struct cmd_debug_setregs_packet *)packet->data;
+    if (!sp) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
-    
-    r = ptrace(PT_SETDBREGS, dbgctx.pid, dbreg64, NULL);
+
+    net_send_status(fd, CMD_SUCCESS);
+    net_recv_data(fd, &dbreg64, sp->length, 1);
+
+    r = ptrace(PT_SETDBREGS, curdbgctx->pid, &dbreg64, NULL);
     if (r == -1 && errno) {
         net_send_status(fd, CMD_ERROR);
         return 1;
@@ -452,8 +471,8 @@ int debug_stopgo_handle(int fd, struct cmd_packet *packet) {
     } else if(sp->stop == 2) {
         signal = SIGKILL;
     }
-    
-    r = ptrace(PT_CONTINUE, dbgctx.pid, (void *)1, signal);
+
+    r = ptrace(PT_CONTINUE, curdbgctx->pid, (void *)1, signal);
     if (r == -1 && errno) {
         net_send_status(fd, CMD_ERROR);
         return 1;
@@ -464,22 +483,26 @@ int debug_stopgo_handle(int fd, struct cmd_packet *packet) {
     return 0;
 }
 
-int connect_debugger() {
+int connect_debugger(struct debug_context *dbgctx, struct sockaddr_in *client) {
     struct sockaddr_in server;
+    int r;
 
+    // we are now debugging
+    g_debugging = 1;
+
+    // connect to server
     server.sin_len = sizeof(server);
     server.sin_family = AF_INET;
-    server.sin_addr.s_addr = dbgctx.client.sin_addr.s_addr;
-    server.sin_port = sceNetHtons(DBG_PORT);
+    server.sin_addr.s_addr = client->sin_addr.s_addr;
+    server.sin_port = sceNetHtons(DEBUG_PORT);
     memset(server.sin_zero, NULL, sizeof(server.sin_zero));
 
-    dbgctx.clientfd = sceNetSocket("interrupt", AF_INET, SOCK_STREAM, 0);
-    if(dbgctx.clientfd <= 0) {
+    dbgctx->dbgfd = sceNetSocket("interrupt", AF_INET, SOCK_STREAM, 0);
+    if(dbgctx->dbgfd <= 0) {
         return 1;
     }
 
-    errno = NULL;
-    int r = sceNetConnect(dbgctx.clientfd, (struct sockaddr *)&server, sizeof(server));
+    r = sceNetConnect(dbgctx->dbgfd, (struct sockaddr *)&server, sizeof(server));
     if(r) {
         return 1;
     }
@@ -487,40 +510,45 @@ int connect_debugger() {
     return 0;
 }
 
-void debug_cleanup() {
+void debug_cleanup(struct debug_context *dbgctx) {
     struct __dbreg64 dbreg64;
     uint32_t *lwpids;
     int nlwps;
     int r;
 
-    if(dbgctx.pid != -1) {
-        // disable all breakpoints
-        for(int i = 0; i < MAX_BREAKPOINTS; i++) {
-            sys_proc_rw(dbgctx.pid, dbgctx.breakpoints[i].address, &dbgctx.breakpoints[i].original, 1, 1);
-        }
+    // clean up stuff
+    curdbgcli->debugging = 0;
 
-        // reset all debug registers
-        nlwps = ptrace(PT_GETNUMLWPS, dbgctx.pid, NULL, 0);
-        lwpids = (uint32_t *)pfmalloc(nlwps * sizeof(uint32_t));
-        if(lwpids) {
-            memset(&dbreg64, NULL, sizeof(struct __dbreg64));
+    // delete references
+    g_debugging = 0;
+    curdbgcli = NULL;
+    curdbgctx = NULL;
 
-            r = ptrace(PT_GETLWPLIST, dbgctx.pid, (void *)lwpids, nlwps);
-            if(!r) {
-                for(int i = 0; i < nlwps; i++) {
-                    ptrace(PT_SETDBREGS, lwpids[i], &dbreg64, NULL);
-                }
-            }
-
-            free(lwpids);
-        }
-
-        ptrace(PT_CONTINUE, dbgctx.pid, (void *)1, NULL);
-        ptrace(PT_DETACH, dbgctx.pid, NULL, NULL);
-
-        sceNetSocketClose(dbgctx.clientfd);
-        dbgctx.pid = dbgctx.clientfd = -1;
+    // disable all breakpoints
+    for(int i = 0; i < MAX_BREAKPOINTS; i++) {
+        sys_proc_rw(dbgctx->pid, dbgctx->breakpoints[i].address, &dbgctx->breakpoints[i].original, 1, 1);
     }
+
+    // reset all debug registers
+    nlwps = ptrace(PT_GETNUMLWPS, dbgctx->pid, NULL, 0);
+    lwpids = (uint32_t *)pfmalloc(nlwps * sizeof(uint32_t));
+    if(lwpids) {
+        memset(&dbreg64, NULL, sizeof(struct __dbreg64));
+
+        r = ptrace(PT_GETLWPLIST, dbgctx->pid, (void *)lwpids, nlwps);
+        if(!r) {
+            for(int i = 0; i < nlwps; i++) {
+                ptrace(PT_SETDBREGS, lwpids[i], &dbreg64, NULL);
+            }
+        }
+
+        free(lwpids);
+    }
+
+    ptrace(PT_CONTINUE, dbgctx->pid, (void *)1, NULL);
+    ptrace(PT_DETACH, dbgctx->pid, NULL, NULL);
+
+    sceNetSocketClose(dbgctx->dbgfd);
 }
 
 int debug_handle(int fd, struct cmd_packet *packet) {
@@ -543,10 +571,10 @@ int debug_handle(int fd, struct cmd_packet *packet) {
             return debug_getregs_handle(fd, packet);
         case CMD_DEBUG_SETREGS:
             return debug_setregs_handle(fd, packet);
-        case CMD_DEBUG_GETFREGS:
-            return debug_getfregs_handle(fd, packet);
-        case CMD_DEBUG_SETFREGS:
-            return debug_setfregs_handle(fd, packet);
+        case CMD_DEBUG_GETFPREGS:
+            return debug_getfpregs_handle(fd, packet);
+        case CMD_DEBUG_SETFPREGS:
+            return debug_setfpregs_handle(fd, packet);
         case CMD_DEBUG_GETDBGREGS:
             return debug_getdbregs_handle(fd, packet);
         case CMD_DEBUG_SETDBGREGS:

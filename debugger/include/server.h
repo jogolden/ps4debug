@@ -16,7 +16,12 @@
 
 #define SERVER_IN               IN_ADDR_ANY
 #define SERVER_PORT             744
+#define SERVER_MAXCLIENTS       8
 
+extern struct server_client servclients[SERVER_MAXCLIENTS];
+
+struct server_client *alloc_client();
+void free_client(struct server_client *svc);
 void configure_socket(int fd);
 int start_server();
 
