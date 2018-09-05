@@ -18,8 +18,9 @@
 #define CMD_PROC_INFO	    	0xBDAA0004
 #define CMD_PROC_INTALL	    	0xBDAA0005
 #define CMD_PROC_CALL	    	0xBDAA0006
-#define CMD_PROC_ELF	    	0xBDAA0007
+#define CMD_PROC_ELF          0xBDAA0007
 #define CMD_PROC_PROTECT    	0xBDAA0008
+#define CMD_PROC_SCAN         0xBDAA0009
 
 #define CMD_DEBUG_ATTACH        0xBDBB0001
 #define CMD_DEBUG_DETACH        0xBDBB0002
@@ -34,14 +35,14 @@
 #define CMD_DEBUG_SETFPREGS     0xBDBB000B
 #define CMD_DEBUG_GETDBGREGS    0xBDBB000C
 #define CMD_DEBUG_SETDBGREGS    0xBDBB000D
-#define CMD_DEBUG_STOPGO		0xBDBB0010
+#define CMD_DEBUG_STOPGO		  0xBDBB0010
 
 #define CMD_KERN_BASE	    	0xBDCC0001
-#define CMD_KERN_READ           0xBDCC0002
-#define CMD_KERN_WRITE	       	0xBDCC0003
+#define CMD_KERN_READ         0xBDCC0002
+#define CMD_KERN_WRITE	      0xBDCC0003
 
-#define CMD_CONSOLE_REBOOT      0xBDDD0001
-#define CMD_CONSOLE_END         0xBDDD0002
+#define CMD_CONSOLE_REBOOT    0xBDDD0001
+#define CMD_CONSOLE_END       0xBDDD0002
 #define CMD_CONSOLE_PRINT		0xBDDD0003
 #define CMD_CONSOLE_NOTIFY		0xBDDD0004
 
@@ -52,7 +53,7 @@
 #define VALID_CONSOLE_CMD(cmd)	(((cmd & 0x00FF0000) >> 16) == 0xDD)
 
 #define CMD_SUCCESS				0x80000000
-#define CMD_ERROR	        	0xF0000001
+#define CMD_ERROR	          	0xF0000001
 #define CMD_TOO_MUCH_DATA		0xF0000002
 #define CMD_DATA_NULL			0xF0000003
 #define CMD_ALREADY_DEBUG		0xF0000004
@@ -125,6 +126,42 @@ struct cmd_proc_protect_packet {
     uint32_t newprot;
 } __attribute__((packed));
 #define CMD_PROC_PROTECT_PACKET_SIZE 20
+
+typedef enum cmd_proc_scan_valuetype {
+   valTypeUInt8 = 0,
+   valTypeInt8,
+   valTypeUInt16,
+   valTypeInt16,
+   valTypeUInt32,
+   valTypeInt32,
+   valTypeUInt64,
+   valTypeInt64,
+   valTypeFloat,
+   valTypeDouble,
+   valTypeArrBytes,
+   valTypeString
+} __attribute__((__packed__)) cmd_proc_scan_valuetype;
+typedef enum cmd_proc_scan_comparetype {
+   cmpTypeExactValue = 0,
+   cmpTypeFuzzyValue,
+   cmpTypeBiggerThan,
+   cmpTypeSmallerThan,
+   cmpTypeValueBetween,
+   cmpTypeIncreasedValue,
+   cmpTypeIncreasedValueBy,
+   cmpTypeDecreasedValue,
+   cmpTypeDecreasedValueBy,
+   cmpTypeChangedValue,
+   cmpTypeUnchangedValue,
+   cmpTypeUnknownInitialValue
+} __attribute__((__packed__)) cmd_proc_scan_comparetype;
+typedef struct cmd_proc_scan_packet {
+   uint32_t pid;
+   cmd_proc_scan_valuetype valueType;
+   cmd_proc_scan_comparetype compareType;
+   uint32_t lenData;
+} __attribute__((packed)) cmd_proc_scan_packet;
+#define CMD_PROC_SCAN_PACKET_SIZE 10
 
 // debug
 struct cmd_debug_attach_packet {
