@@ -628,7 +628,7 @@ int proc_scan_handle(int fd, struct cmd_packet *packet) {
     ResultNode* list = NULL;
     size_t listItemCount = 0;
     unsigned char *pExtraValue = valueLength == sp->lenData ? NULL : &data[valueLength];
-    for (size_t i = 0; i < args.num; i++) {
+    for (size_t i = 0; i < args.num - 1; i++) {
        if (args.maps[i].prot & PROT_READ != PROT_READ)
          continue;
 
