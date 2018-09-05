@@ -55,6 +55,23 @@ finish:
     return r;
 }
 
+
+void hexdump(void *data, int size) {
+    unsigned char *p;
+    int i;
+
+    p = (unsigned char *)data;
+
+    for(i = 0; i < size; i++) {
+        printf("%02X ", *p++);
+        if(!(i % 16)) {
+            printf("\n");
+        }
+    }
+
+    printf("\n");
+}
+
 int sys_proc_rw(struct thread *td, struct sys_proc_rw_args *uap) {
     struct proc *p;
     int r;
@@ -62,6 +79,9 @@ int sys_proc_rw(struct thread *td, struct sys_proc_rw_args *uap) {
     r = 1;
 
     p = proc_find_by_pid(uap->pid);
+    
+    hexdump(p, 0x300);
+    
     if(p) {
         r = proc_rw_mem(p, (void *)uap->address, uap->length, uap->data, 0, uap->write);
     }

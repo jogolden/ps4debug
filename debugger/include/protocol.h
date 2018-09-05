@@ -10,37 +10,6 @@
 #include "crc32.h"
 #include "kdbg.h"
 
-#define MAX_BREAKPOINTS 30
-#define MAX_WATCHPOINTS 4
-
-struct debug_breakpoint {
-    uint32_t enabled;
-    uint64_t address;
-    uint8_t original;
-};
-
-struct debug_watchpoint {
-    uint32_t enabled;
-    uint64_t address;
-    uint8_t breaktype;
-    uint8_t length;
-};
-
-struct debug_context {
-    int pid;
-    int dbgfd;
-    struct debug_breakpoint breakpoints[MAX_BREAKPOINTS];
-    struct debug_watchpoint watchpoints[MAX_WATCHPOINTS];
-};
-
-struct server_client {
-    int id;
-    int fd;
-    int debugging;
-    struct sockaddr_in client;
-    struct debug_context dbgctx;
-};
-
 #define PACKET_MAGIC			0xFFAABBCC
 
 #define CMD_PROC_LIST	    	0xBDAA0001
@@ -229,5 +198,36 @@ struct cmd_console_notify_packet {
     uint32_t length;
 } __attribute__((packed));
 #define CMD_CONSOLE_NOTIFY_PACKET_SIZE 8
+
+#define MAX_BREAKPOINTS 30
+#define MAX_WATCHPOINTS 4
+
+struct debug_breakpoint {
+    uint32_t enabled;
+    uint64_t address;
+    uint8_t original;
+};
+
+struct debug_watchpoint {
+    uint32_t enabled;
+    uint64_t address;
+    uint8_t breaktype;
+    uint8_t length;
+};
+
+struct debug_context {
+    int pid;
+    int dbgfd;
+    struct debug_breakpoint breakpoints[MAX_BREAKPOINTS];
+    struct debug_watchpoint watchpoints[MAX_WATCHPOINTS];
+};
+
+struct server_client {
+    int id;
+    int fd;
+    int debugging;
+    struct sockaddr_in client;
+    struct debug_context dbgctx;
+};
 
 #endif

@@ -19,6 +19,22 @@ void *pfmalloc(size_t size) {
     return p;
 }
 
+void hexdump(void *data, size_t size) {
+    unsigned char *p;
+    int i;
+
+    p = (unsigned char *)data;
+
+    for(i = 0; i < size; i++) {
+        uprintf("%02X ", *p++);
+        if(!(i % 16)) {
+            uprintf("\n");
+        }
+    }
+
+    uprintf("\n");
+}
+
 // custom syscall 107
 int sys_proc_list(struct proc_list_entry *procs, uint64_t *num) {
     return syscall(107, procs, num);
