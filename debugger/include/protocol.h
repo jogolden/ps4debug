@@ -171,7 +171,7 @@ typedef enum cmd_proc_scan_valuetype {
    valTypeDouble,
    valTypeArrBytes,
    valTypeString
-} cmd_proc_scan_valuetype __attribute__((__packed__));
+} __attribute__((__packed__)) cmd_proc_scan_valuetype;
 typedef enum cmd_proc_scan_comparetype {
    cmpTypeExactValue = 0,
    cmpTypeFuzzyValue,
@@ -185,13 +185,13 @@ typedef enum cmd_proc_scan_comparetype {
    cmpTypeChangedValue,
    cmpTypeUnchangedValue,
    cmpTypeUnknownInitialValue
-} cmd_proc_scan_comparetype __attribute__((__packed__));
+} __attribute__((__packed__)) cmd_proc_scan_comparetype;
 typedef struct cmd_proc_scan_packet {
    uint32_t pid;
    cmd_proc_scan_valuetype valueType;
    cmd_proc_scan_comparetype compareType;
    uint32_t lenData;
-} cmd_proc_scan_packet __attribute__((packed));
+} __attribute__((packed)) cmd_proc_scan_packet;
 #define CMD_PROC_SCAN_PACKET_SIZE 10
 
 // debug

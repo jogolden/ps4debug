@@ -264,6 +264,7 @@ size_t proc_scan_getSizeOfValueType(cmd_proc_scan_valuetype valType) {
           return 8;
        case valTypeArrBytes:
        case valTypeString:
+       default:
           return NULL;
     }
 }
@@ -591,12 +592,12 @@ void resultlist_add(ResultNode** head, uint64_t address) {
 }
 
 int proc_scan_handle(int fd, struct cmd_packet *packet) {
-    cmd_proc_scan_packet *sp = (struct cmd_proc_scanpacket *)packet->data;
+    cmd_proc_scan_packet *sp = (cmd_proc_scan_packet *)packet->data;
     // get and set data
-    size_t valueLength = rpc_proc_scan_getSizeOfValueType(sp->valueType);
+    size_t valueLength = proc_scan_getSizeOfValueType(sp->valueType);
     if (!valueLength)
        valueLength = sp->lenData;
-    void *data = pfmalloc(sp->lenData);
+    unsigned char *data = (unsigned char *)pfmalloc(sp->lenData);
     if (!data) {
        net_send_status(fd, CMD_DATA_NULL);
        return 1;
@@ -629,7 +630,7 @@ int proc_scan_handle(int fd, struct cmd_packet *packet) {
     size_t listItemCount = 0;
     unsigned char *pExtraValue = valueLength == sp->lenData ? NULL : &data[valueLength];
     for (size_t i = 0; i < args.num - 1; i++) {
-       if (args.maps[i].prot & PROT_READ != PROT_READ)
+       if ((args.maps[i].prot & PROT_READ) != PROT_READ)
          continue;
 
        uint64_t sectionStartAddr = args.maps[i].start;
