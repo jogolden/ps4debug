@@ -629,6 +629,9 @@ int proc_scan_handle(int fd, struct cmd_packet *packet) {
     size_t listItemCount = 0;
     unsigned char *pExtraValue = valueLength == sp->lenData ? NULL : &data[valueLength];
     for (size_t i = 0; i < args.num; i++) {
+       if (args.maps[i].prot & PROT_READ != PROT_READ)
+         continue;
+
        uint64_t sectionStartAddr = args.maps[i].start;
        size_t sectionLen = args.maps[i].end - sectionStartAddr;
        // read
