@@ -11,6 +11,8 @@ Before you do anything, haha, I would recommend joining the PS4 Source Discord: 
 6. Start messing around with your debugging tool, try to find a bug for me!
 7. Make l33t hacks.
 
+Please look at the libdbg folder for a library to use with this payload.
+
 ### Contributing
 If you want to contribute, then feel free to make a pull request or open an issue with a bug that you have found! I am always in need of people to test for me. Join the PS4 Source Discord and look for golden. Also I need someone that is good at writing to spiff up this readme document. I am always in need of people to do work! It seems like I do everything...
 

@@ -27,7 +27,7 @@ void hexdump(void *data, size_t size) {
 
     for(i = 0; i < size; i++) {
         uprintf("%02X ", *p++);
-        if(!(i % 16)) {
+        if(!(i % 16) && i != 0) {
             uprintf("\n");
         }
     }

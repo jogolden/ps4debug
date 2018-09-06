@@ -55,23 +55,6 @@ finish:
     return r;
 }
 
-
-void hexdump(void *data, int size) {
-    unsigned char *p;
-    int i;
-
-    p = (unsigned char *)data;
-
-    for(i = 0; i < size; i++) {
-        printf("%02X ", *p++);
-        if(!(i % 16)) {
-            printf("\n");
-        }
-    }
-
-    printf("\n");
-}
-
 int sys_proc_rw(struct thread *td, struct sys_proc_rw_args *uap) {
     struct proc *p;
     int r;
@@ -79,9 +62,6 @@ int sys_proc_rw(struct thread *td, struct sys_proc_rw_args *uap) {
     r = 1;
 
     p = proc_find_by_pid(uap->pid);
-    
-    hexdump(p, 0x300);
-    
     if(p) {
         r = proc_rw_mem(p, (void *)uap->address, uap->length, uap->data, 0, uap->write);
     }
@@ -107,8 +87,7 @@ int sys_proc_free_handle(struct proc *p, struct sys_proc_free_args *args) {
 }
 
 int sys_proc_protect_handle(struct proc *p, struct sys_proc_protect_args *args) {
-    void *end = (void *)(args->address + args->length);
-    return proc_mprotect(p, (void *)args->address, end, args->prot);
+    return proc_mprotect(p, (void *)args->address, args->length, args->prot);
 }
 
 int sys_proc_vm_map_handle(struct proc *p, struct sys_proc_vm_map_args *args) {
@@ -167,6 +146,8 @@ int sys_proc_install_handle(struct proc *p, struct sys_proc_install_args *args) 
     if(proc_create_thread(p, stubentryaddr)) {
         return 1;
     }
+
+    args->stubentryaddr = stubentryaddr;
 
     return 0;
 }
@@ -229,7 +210,7 @@ int sys_proc_elf_handle(struct proc *p, struct sys_proc_elf_args *args) {
         }
 
         if (!memcmp(entries[i].name, "executable", 10)) {
-            proc_mprotect(p, (void *)entries[i].start, (void *)entries[i].end, VM_PROT_ALL);
+            proc_mprotect(p, (void *)entries[i].start, (uint64_t)(entries[i].end - entries[i].start), VM_PROT_ALL);
             break;
         }
     }
@@ -239,6 +220,15 @@ int sys_proc_elf_handle(struct proc *p, struct sys_proc_elf_args *args) {
         return 1;
     }
 
+    return 0;
+}
+
+int sys_proc_info_handle(struct proc *p, struct sys_proc_info_args *args) {
+    args->pid = p->pid;
+    memcpy(args->name, p->p_comm, sizeof(args->name));
+    memcpy(args->path, p->path, sizeof(args->path));
+    memcpy(args->titleid, p->titleid, sizeof(args->titleid));
+    memcpy(args->contentid, p->contentid, sizeof(args->contentid));
     return 0;
 }
 
@@ -273,6 +263,9 @@ int sys_proc_cmd(struct thread *td, struct sys_proc_cmd_args *uap) {
             break;
         case SYS_PROC_ELF:
             r = sys_proc_elf_handle(p, (struct sys_proc_elf_args *)uap->data);
+            break;
+        case SYS_PROC_INFO:
+            r = sys_proc_info_handle(p, (struct sys_proc_info_args *)uap->data);
             break;
         default:
             r = 1;

@@ -39,6 +39,7 @@ int sys_proc_rw(struct thread *td, struct sys_proc_rw_args *uap);
 #define SYS_PROC_INSTALL    5
 #define SYS_PROC_CALL       6
 #define SYS_PROC_ELF        7
+#define SYS_PROC_INFO       8
 struct sys_proc_alloc_args {
     uint64_t address;
     uint64_t length;
@@ -57,7 +58,7 @@ struct sys_proc_vm_map_args {
     uint64_t num;
 } __attribute__((packed));
 struct sys_proc_install_args {
-    // null
+    uint64_t stubentryaddr;
 } __attribute__((packed));
 struct sys_proc_call_args {
     uint32_t pid;
@@ -73,6 +74,13 @@ struct sys_proc_call_args {
 } __attribute__((packed));
 struct sys_proc_elf_args {
     void *elf;
+} __attribute__((packed));
+struct sys_proc_info_args {
+    int pid;
+    char name[40];
+    char path[64];
+    char titleid[16];
+    char contentid[64];
 } __attribute__((packed));
 struct sys_proc_cmd_args {
     uint64_t pid;

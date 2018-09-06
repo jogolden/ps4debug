@@ -26,12 +26,23 @@ void free_client(struct server_client *svc) {
     }
 }
 
+int handle_version(int fd, struct cmd_packet *packet) {
+    uint32_t len = strlen(PACKET_VERSION);
+    net_send_data(fd, &len, sizeof(uint32_t));
+    net_send_data(fd, PACKET_VERSION, len);
+    return 0;
+}
+
 int cmd_handler(int fd, struct cmd_packet *packet) {
     if (!VALID_CMD(packet->cmd)) {
         return 1;
     }
 
     uprintf("cmd_handler %X", packet->cmd);
+
+    if(packet->cmd == CMD_VERSION) {
+        return handle_version(fd, packet);
+    }
 
     if(VALID_PROC_CMD(packet->cmd)) {
         return proc_handle(fd, packet);
@@ -49,7 +60,7 @@ int cmd_handler(int fd, struct cmd_packet *packet) {
 int check_debug_interrupt() {
     struct debug_interrupt_packet resp;
     struct debug_breakpoint *breakpoint;
-    struct ptrace_lwpinfo lwpinfo;
+    struct ptrace_lwpinfo *lwpinfo;
     uint8_t int3;
     int status;
     int signal;
@@ -76,19 +87,26 @@ int check_debug_interrupt() {
         return 0;
     }
 
-    uprintf("sizeof(struct ptrace_lwpinfo) %X", sizeof(struct ptrace_lwpinfo));
+    // If lwpinfo is on the stack it fails, maybe I should patch ptrace? idk
+    lwpinfo = (struct ptrace_lwpinfo *)pfmalloc(sizeof(struct ptrace_lwpinfo));
+    if(!lwpinfo) {
+        uprintf("could not allocate memory for thread information");
+        return 1;
+    }
 
     // grab interrupt data
-    r = ptrace(PT_LWPINFO, curdbgctx->pid, &lwpinfo, sizeof(struct ptrace_lwpinfo));
+    r = ptrace(PT_LWPINFO, curdbgctx->pid, lwpinfo, sizeof(struct ptrace_lwpinfo));
     if(r) {
         uprintf("could not get lwpinfo errno %i", errno);
     }
 
     // fill response
     memset(&resp, NULL, DEBUG_INTERRUPT_PACKET_SIZE);
-    resp.lwpid = lwpinfo.pl_lwpid;
+    resp.lwpid = lwpinfo->pl_lwpid;
     resp.status = status;
-    memcpy(resp.tdname, lwpinfo.pl_tdname, sizeof(resp.tdname));
+
+    // TODO: fix size mismatch with these fields
+    memcpy(resp.tdname, lwpinfo->pl_tdname, sizeof(lwpinfo->pl_tdname));
 
     r = ptrace(PT_GETREGS, resp.lwpid, &resp.reg64, NULL);
     if(r) {
@@ -147,6 +165,8 @@ int check_debug_interrupt() {
 
     uprintf("check_debug_interrupt interrupt data sent");
 
+    free(lwpinfo);
+
     return 0;
 }
 
@@ -154,6 +174,7 @@ int handle_client(struct server_client *svc) {
     struct cmd_packet packet;
     uint32_t rsize;
     uint32_t length;
+    uint32_t crc;
     void *data;
     int fd;
     int r;
@@ -244,11 +265,12 @@ int handle_client(struct server_client *svc) {
             packet.data = NULL;
         }
 
-        // TODO: check crc if there is one
-        /*if(crc32(0, data, length) != packet.crc) {
-            uprintf("invalid packet checksum");
+        // checksum
+        crc = crc32(0, data, length);
+        if(packet.crc && crc != packet.crc) {
+            uprintf("invalid packet checksum (calc %X vs got %X)", crc, packet.crc);
             goto error;
-        }*/
+        }
 
         // special case when attaching
         // if we are debugging then the handler for CMD_DEBUG_ATTACH will send back the right error
@@ -291,6 +313,68 @@ void configure_socket(int fd) {
     sceNetSetsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, (char *)&flag, sizeof(flag));
 }
 
+void *broadcast_thread(void *arg) {
+    struct sockaddr_in server;
+	struct sockaddr_in client;
+    unsigned int clisize;
+	int serv;
+	int flag;
+	int r;
+    uint32_t magic;
+
+    uprintf("broadcast server started");
+
+	// setup server
+	server.sin_len = sizeof(server);
+	server.sin_family = AF_INET;
+	server.sin_addr.s_addr = IN_ADDR_ANY;
+	server.sin_port = sceNetHtons(BROADCAST_PORT);
+	memset(server.sin_zero, NULL, sizeof(server.sin_zero));
+
+	serv = sceNetSocket("broadsock", AF_INET, SOCK_DGRAM, 0);
+    if(serv < 0) {
+        uprintf("failed to create broadcast server");
+        return NULL;
+    }
+
+	flag = 1;
+	sceNetSetsockopt(serv, SOL_SOCKET, SO_BROADCAST, (char *)&flag, sizeof(flag));
+
+	r = sceNetBind(serv, (struct sockaddr *)&server, sizeof(server));
+    if(r) {
+        uprintf("failed to bind broadcast server");
+        return NULL;
+    }
+    
+    // TODO: clean this up, but meh not too dirty? is it? hmmm
+    int libNet = sceKernelLoadStartModule("libSceNet.sprx", 0, NULL, 0, 0, 0);
+    int (*sceNetRecvfrom)(int s, void *buf, unsigned int len, int flags, struct sockaddr *from, unsigned int *fromlen);
+	int (*sceNetSendto)(int s, void *msg, unsigned int len, int flags, struct sockaddr *to, unsigned int tolen);
+	RESOLVE(libNet, sceNetRecvfrom);
+	RESOLVE(libNet, sceNetSendto);
+
+    while(1) {
+        scePthreadYield();
+
+        magic = 0;
+        clisize = sizeof(client);
+        r = sceNetRecvfrom(serv, &magic, sizeof(uint32_t), 0, (struct sockaddr *)&client, &clisize);
+
+		if(r >= 0) {
+			uprintf("broadcast server received a message");
+            if(magic == BROADCAST_MAGIC) {
+			    sceNetSendto(serv, &magic, sizeof(uint32_t), 0, (struct sockaddr *)&client, clisize);
+            }
+		} else {
+			uprintf("sceNetRecvfrom failed");
+		}
+
+        sceKernelSleep(1);
+    }
+
+    return NULL;
+}
+
 int start_server() {
     struct sockaddr_in server;
     struct sockaddr_in client;
@@ -299,14 +383,17 @@ int start_server() {
     int serv, fd;
     int r;
 
-    uprintf("server started");
+    uprintf("ps4debug " PACKET_VERSION " server started");
+
+    ScePthread broadcast;
+    scePthreadCreate(&broadcast, NULL, broadcast_thread, NULL, "broadcast");
 
     // server structure
     server.sin_len = sizeof(server);
     server.sin_family = AF_INET;
-    server.sin_addr.s_addr = SERVER_IN;
+    server.sin_addr.s_addr = IN_ADDR_ANY;
     server.sin_port = sceNetHtons(SERVER_PORT);
-    memset(server.sin_zero, 0, sizeof(server.sin_zero));
+    memset(server.sin_zero, NULL, sizeof(server.sin_zero));
 
     // start up server
     serv = sceNetSocket("debugserver", AF_INET, SOCK_STREAM, 0);

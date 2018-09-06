@@ -10,17 +10,23 @@
 #include "crc32.h"
 #include "kdbg.h"
 
+#define PACKET_VERSION          "1.2"
 #define PACKET_MAGIC			0xFFAABBCC
+
+#define CMD_VERSION             0xBD000001
 
 #define CMD_PROC_LIST	    	0xBDAA0001
 #define CMD_PROC_READ	    	0xBDAA0002
 #define CMD_PROC_WRITE	    	0xBDAA0003
-#define CMD_PROC_INFO	    	0xBDAA0004
+#define CMD_PROC_MAPS	    	0xBDAA0004
 #define CMD_PROC_INTALL	    	0xBDAA0005
 #define CMD_PROC_CALL	    	0xBDAA0006
-#define CMD_PROC_ELF          0xBDAA0007
+#define CMD_PROC_ELF            0xBDAA0007
 #define CMD_PROC_PROTECT    	0xBDAA0008
-#define CMD_PROC_SCAN         0xBDAA0009
+#define CMD_PROC_SCAN           0xBDAA0009
+#define CMD_PROC_INFO           0xBDAA000A
+#define CMD_PROC_ALLOC          0xBDAA000B
+#define CMD_PROC_FREE           0xBDAA000C
 
 #define CMD_DEBUG_ATTACH        0xBDBB0001
 #define CMD_DEBUG_DETACH        0xBDBB0002
@@ -35,14 +41,14 @@
 #define CMD_DEBUG_SETFPREGS     0xBDBB000B
 #define CMD_DEBUG_GETDBGREGS    0xBDBB000C
 #define CMD_DEBUG_SETDBGREGS    0xBDBB000D
-#define CMD_DEBUG_STOPGO		  0xBDBB0010
+#define CMD_DEBUG_STOPGO        0xBDBB0010
 
 #define CMD_KERN_BASE	    	0xBDCC0001
-#define CMD_KERN_READ         0xBDCC0002
-#define CMD_KERN_WRITE	      0xBDCC0003
+#define CMD_KERN_READ           0xBDCC0002
+#define CMD_KERN_WRITE          0xBDCC0003
 
-#define CMD_CONSOLE_REBOOT    0xBDDD0001
-#define CMD_CONSOLE_END       0xBDDD0002
+#define CMD_CONSOLE_REBOOT      0xBDDD0001
+#define CMD_CONSOLE_END         0xBDDD0002
 #define CMD_CONSOLE_PRINT		0xBDDD0003
 #define CMD_CONSOLE_NOTIFY		0xBDDD0004
 
@@ -85,10 +91,10 @@ struct cmd_proc_write_packet {
 } __attribute__((packed));
 #define CMD_PROC_WRITE_PACKET_SIZE 16
 
-struct cmd_proc_info_packet {
+struct cmd_proc_maps_packet {
     uint32_t pid;
 } __attribute__((packed));
-#define CMD_PROC_INFO_PACKET_SIZE 4
+#define CMD_PROC_MAPS_PACKET_SIZE 4
 
 struct cmd_proc_install_packet {
     uint32_t pid;
@@ -141,6 +147,7 @@ typedef enum cmd_proc_scan_valuetype {
    valTypeArrBytes,
    valTypeString
 } __attribute__((__packed__)) cmd_proc_scan_valuetype;
+
 typedef enum cmd_proc_scan_comparetype {
    cmpTypeExactValue = 0,
    cmpTypeFuzzyValue,
@@ -155,6 +162,7 @@ typedef enum cmd_proc_scan_comparetype {
    cmpTypeUnchangedValue,
    cmpTypeUnknownInitialValue
 } __attribute__((__packed__)) cmd_proc_scan_comparetype;
+
 typedef struct cmd_proc_scan_packet {
    uint32_t pid;
    cmd_proc_scan_valuetype valueType;
@@ -162,6 +170,36 @@ typedef struct cmd_proc_scan_packet {
    uint32_t lenData;
 } __attribute__((packed)) cmd_proc_scan_packet;
 #define CMD_PROC_SCAN_PACKET_SIZE 10
+
+struct cmd_proc_info_packet {
+    uint32_t pid;
+} __attribute__((packed));
+struct cmd_proc_info_response {
+    uint32_t pid;
+    char name[40];
+    char path[64];
+    char titleid[16];
+    char contentid[64];
+} __attribute__((packed));
+#define CMD_PROC_INFO_PACKET_SIZE 4
+#define CMD_PROC_INFO_RESPONSE_SIZE 188
+
+struct cmd_proc_alloc_packet {
+    uint32_t pid;
+    uint32_t length;
+} __attribute__((packed));
+struct cmd_proc_alloc_response {
+    uint64_t address;
+} __attribute__((packed));
+#define CMD_PROC_ALLOC_PACKET_SIZE 8
+#define CMD_PROC_ALLOC_RESPONSE_SIZE 8
+
+struct cmd_proc_free_packet {
+    uint32_t pid;
+    uint64_t address;
+    uint32_t length;
+} __attribute__((packed));
+#define CMD_PROC_FREE_PACKET_SIZE 16
 
 // debug
 struct cmd_debug_attach_packet {

@@ -100,7 +100,7 @@ struct ptrace_io_desc {
 
 TYPE_BEGIN(struct ptrace_lwpinfo, 0x98);
 TYPE_FIELD(uint32_t pl_lwpid, 0);
-TYPE_FIELD(char pl_tdname[40], 0x80);
+TYPE_FIELD(char pl_tdname[24], 0x80);
 TYPE_END();
 
 int ptrace(int req, int pid, void *addr, int data);

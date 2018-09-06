@@ -3,7 +3,6 @@
 //
 
 #include "proc.h"
-#include <stdbool.h>
 
 int proc_list_handle(int fd, struct cmd_packet *packet) {
     void *data;
@@ -133,18 +132,18 @@ int proc_write_handle(int fd, struct cmd_packet *packet) {
     return 1;
 }
 
-int proc_info_handle(int fd, struct cmd_packet *packet) {
-    struct cmd_proc_info_packet *ip;
+int proc_maps_handle(int fd, struct cmd_packet *packet) {
+    struct cmd_proc_maps_packet *mp;
     struct sys_proc_vm_map_args args;
     uint32_t size;
     uint32_t num;
 
-    ip = (struct cmd_proc_info_packet *)packet->data;
+    mp = (struct cmd_proc_maps_packet *)packet->data;
 
-    if(ip) {
+    if(mp) {
         memset(&args, NULL, sizeof(args));
 
-        if(sys_proc_cmd(ip->pid, SYS_PROC_VM_MAP, &args)) {
+        if(sys_proc_cmd(mp->pid, SYS_PROC_VM_MAP, &args)) {
             net_send_status(fd, CMD_ERROR);
             return 1;
         }
@@ -157,7 +156,7 @@ int proc_info_handle(int fd, struct cmd_packet *packet) {
             return 1;
         }
 
-        if(sys_proc_cmd(ip->pid, SYS_PROC_VM_MAP, &args)) {
+        if(sys_proc_cmd(mp->pid, SYS_PROC_VM_MAP, &args)) {
             free(args.maps);
             net_send_status(fd, CMD_ERROR);
             return 1;
@@ -236,7 +235,7 @@ int proc_protect_handle(int fd, struct cmd_packet *packet) {
         args.address = pp->address;
         args.length = pp->length;
         args.prot = pp->newprot;
-        sys_proc_cmd(pp->pid,SYS_PROC_PROTECT, &args);
+        sys_proc_cmd(pp->pid, SYS_PROC_PROTECT, &args);
         
         net_send_status(fd, CMD_SUCCESS);
     }
@@ -268,6 +267,7 @@ size_t proc_scan_getSizeOfValueType(cmd_proc_scan_valuetype valType) {
           return NULL;
     }
 }
+
 bool proc_scan_compareValues(cmd_proc_scan_comparetype cmpType, cmd_proc_scan_valuetype valType, size_t valTypeLength,
                                  unsigned char *pScanValue, unsigned char *pMemoryValue, unsigned char *pExtraValue) {
     switch (cmpType) {
@@ -579,29 +579,34 @@ typedef struct ResultNode {
     struct ResultNode* next;
     uint64_t address;
 } ResultNode;
+
 void resultlist_add(ResultNode** head, uint64_t address) {
     ResultNode* node = (ResultNode *)pfmalloc(sizeof(ResultNode));
-	 node->address = address;
-	 if (!(*head)) {
-	 	node->next = NULL;
-	 	*head = node;
-	 } else {
-	 	node->next = *head;
-	 	*head = node;
-	 }
+     node->address = address;
+     if (!(*head)) {
+         node->next = NULL;
+         *head = node;
+     } else {
+         node->next = *head;
+         *head = node;
+     }
 }
 
 int proc_scan_handle(int fd, struct cmd_packet *packet) {
     cmd_proc_scan_packet *sp = (cmd_proc_scan_packet *)packet->data;
+
     // get and set data
     size_t valueLength = proc_scan_getSizeOfValueType(sp->valueType);
-    if (!valueLength)
+    if (!valueLength) {
        valueLength = sp->lenData;
+    }
+
     unsigned char *data = (unsigned char *)pfmalloc(sp->lenData);
     if (!data) {
        net_send_status(fd, CMD_DATA_NULL);
        return 1;
     }
+    
     net_recv_data(fd, data, sp->lenData, 1);
 
     // query for the process id
@@ -611,6 +616,7 @@ int proc_scan_handle(int fd, struct cmd_packet *packet) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
+
     size_t size = args.num * sizeof(struct proc_vm_map_entry);
     args.maps = (struct proc_vm_map_entry *)pfmalloc(size);
     if (!args.maps) {
@@ -618,26 +624,31 @@ int proc_scan_handle(int fd, struct cmd_packet *packet) {
         net_send_status(fd, CMD_DATA_NULL);
         return 1;
     }
+
     if (sys_proc_cmd(sp->pid, SYS_PROC_VM_MAP, &args)) {
         free(args.maps);
         free(data);
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
+
     net_send_status(fd, CMD_SUCCESS);
  
     ResultNode* list = NULL;
     size_t listItemCount = 0;
     unsigned char *pExtraValue = valueLength == sp->lenData ? NULL : &data[valueLength];
     for (size_t i = 0; i < args.num - 1; i++) {
-       if ((args.maps[i].prot & PROT_READ) != PROT_READ)
-         continue;
+       if ((args.maps[i].prot & PROT_READ) != PROT_READ) {
+            continue;
+       }
 
        uint64_t sectionStartAddr = args.maps[i].start;
        size_t sectionLen = args.maps[i].end - sectionStartAddr;
+
        // read
        unsigned char *scanBuffer = (unsigned char *)pfmalloc(sectionLen); // cast to uchar so we can byte shift
        sys_proc_rw(sp->pid, sectionStartAddr, scanBuffer, sectionLen, 0);
+
        // scan
        for (uint64_t i = 0; i < sectionLen; i += valueLength) {
           uint64_t curAddress = sectionStartAddr + i;
@@ -648,12 +659,14 @@ int proc_scan_handle(int fd, struct cmd_packet *packet) {
        }
        free(scanBuffer);
     }
+
     free(args.maps);
     free(data);
 
     // sent data size
     uint32_t resultSize = listItemCount * sizeof(uint64_t);
     net_send_data(fd, &resultSize, sizeof(uint32_t));
+
     // send data
     while (list) {
        net_send_data(fd, &list->address, sizeof(uint64_t));
@@ -661,6 +674,75 @@ int proc_scan_handle(int fd, struct cmd_packet *packet) {
        list = list->next;
        free(_list);
     }
+
+    return 0;
+}
+
+int proc_info_handle(int fd, struct cmd_packet *packet) {
+    struct cmd_proc_info_packet *ip;
+    struct sys_proc_info_args args;
+    struct cmd_proc_info_response resp;
+
+    ip = (struct cmd_proc_info_packet *)packet->data;
+
+    if(ip) {
+        sys_proc_cmd(ip->pid, SYS_PROC_INFO, &args);
+
+        resp.pid = args.pid;
+        memcpy(resp.name, args.name, sizeof(resp.name));
+        memcpy(resp.path, args.path, sizeof(resp.path));
+        memcpy(resp.titleid, args.titleid, sizeof(resp.titleid));
+        memcpy(resp.contentid, args.contentid, sizeof(resp.contentid));
+
+        net_send_status(fd, CMD_SUCCESS);
+        net_send_data(fd, &resp, CMD_PROC_INFO_RESPONSE_SIZE);
+        return 0;
+    }
+    
+    net_send_status(fd, CMD_DATA_NULL);
+
+    return 0;
+}
+
+int proc_alloc_handle(int fd, struct cmd_packet *packet) {
+    struct cmd_proc_alloc_packet *ap;
+    struct sys_proc_alloc_args args;
+    struct cmd_proc_alloc_response resp;
+
+    ap = (struct cmd_proc_alloc_packet *)packet->data;
+
+    if(ap) {
+        args.length = ap->length;
+        sys_proc_cmd(ap->pid, SYS_PROC_ALLOC, &args);
+
+        resp.address = args.address;
+
+        net_send_status(fd, CMD_SUCCESS);
+        net_send_data(fd, &resp, CMD_PROC_ALLOC_RESPONSE_SIZE);
+        return 0;
+    }
+    
+    net_send_status(fd, CMD_DATA_NULL);
+
+    return 0;
+}
+
+int proc_free_handle(int fd, struct cmd_packet *packet) {
+    struct cmd_proc_free_packet *fp;
+    struct sys_proc_free_args args;
+
+    fp = (struct cmd_proc_free_packet *)packet->data;
+
+    if(fp) {
+        args.address = fp->address;
+        args.length = fp->length;
+        sys_proc_cmd(fp->pid, SYS_PROC_FREE, &args);
+
+        net_send_status(fd, CMD_SUCCESS);
+        return 0;
+    }
+    
+    net_send_status(fd, CMD_DATA_NULL);
 
     return 0;
 }
@@ -673,8 +755,8 @@ int proc_handle(int fd, struct cmd_packet *packet) {
             return proc_read_handle(fd, packet);
         case CMD_PROC_WRITE:
             return proc_write_handle(fd, packet);
-        case CMD_PROC_INFO:
-            return proc_info_handle(fd, packet);
+        case CMD_PROC_MAPS:
+            return proc_maps_handle(fd, packet);
         case CMD_PROC_INTALL:
             return proc_install_handle(fd, packet);
         case CMD_PROC_CALL:
@@ -685,6 +767,12 @@ int proc_handle(int fd, struct cmd_packet *packet) {
             return proc_protect_handle(fd, packet);
         case CMD_PROC_SCAN:
             return proc_scan_handle(fd, packet);
+        case CMD_PROC_INFO:
+            return proc_info_handle(fd, packet);
+        case CMD_PROC_ALLOC:
+            return proc_alloc_handle(fd, packet);
+        case CMD_PROC_FREE:
+            return proc_free_handle(fd, packet);
     }
 
     return 1;

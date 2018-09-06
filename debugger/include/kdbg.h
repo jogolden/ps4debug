@@ -30,6 +30,7 @@ int sys_proc_rw(uint64_t pid, uint64_t address, void *data, uint64_t length, uin
 #define SYS_PROC_INSTALL    5
 #define SYS_PROC_CALL       6
 #define SYS_PROC_ELF        7
+#define SYS_PROC_INFO       8
 struct sys_proc_alloc_args {
     uint64_t address;
     uint64_t length;
@@ -64,6 +65,13 @@ struct sys_proc_call_args {
 } __attribute__((packed));
 struct sys_proc_elf_args {
     void *elf;
+} __attribute__((packed));
+struct sys_proc_info_args {
+    int pid;
+    char name[40];
+    char path[64];
+    char titleid[16];
+    char contentid[64];
 } __attribute__((packed));
 int sys_proc_cmd(uint64_t pid, uint64_t cmd, void *data);
 

@@ -14,15 +14,24 @@
 #include "kern.h"
 #include "console.h"
 
-#define SERVER_IN               IN_ADDR_ANY
 #define SERVER_PORT             744
 #define SERVER_MAXCLIENTS       8
+
+#define BROADCAST_PORT          1010
+#define BROADCAST_MAGIC         0xFFFFAAAA
 
 extern struct server_client servclients[SERVER_MAXCLIENTS];
 
 struct server_client *alloc_client();
 void free_client(struct server_client *svc);
+
+int handle_version(int fd, struct cmd_packet *packet);
+int cmd_handler(int fd, struct cmd_packet *packet);
+int check_debug_interrupt();
+int handle_client(struct server_client *svc);
+
 void configure_socket(int fd);
+void *broadcast_thread(void *arg);
 int start_server();
 
 #endif

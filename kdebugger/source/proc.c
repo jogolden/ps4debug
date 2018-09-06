@@ -137,6 +137,7 @@ inline int proc_write_mem(struct proc *p, void *ptr, uint64_t size, void *data, 
 int proc_allocate(struct proc *p, void **address, uint64_t size) {
     uint64_t addr = NULL;
     int r = 0;
+    uint64_t alignedSize = (size + 0x3FFFull) & ~0x3FFFull;
 
     if (!address) {
         r = 1;
@@ -154,7 +155,7 @@ int proc_allocate(struct proc *p, void **address, uint64_t size) {
         goto error;
     }
 
-    r = vm_map_insert(map, NULL, NULL, addr, addr + size, VM_PROT_ALL, VM_PROT_ALL, 0);
+    r = vm_map_insert(map, NULL, NULL, addr, addr + alignedSize, VM_PROT_ALL, VM_PROT_ALL, 0);
 
     vm_map_unlock(map);
 
@@ -172,24 +173,26 @@ error:
 
 int proc_deallocate(struct proc *p, void *address, uint64_t size) {
     int r = 0;
+    uint64_t alignedSize = (size + 0x3FFFull) & ~0x3FFFull;
 
     struct vmspace *vm = p->p_vmspace;
     struct vm_map *map = &vm->vm_map;
 
     vm_map_lock(map);
 
-    r = vm_map_delete(map, (uint64_t)address, (uint64_t)address + size);
+    r = vm_map_delete(map, (uint64_t)address, (uint64_t)address + alignedSize);
 
     vm_map_unlock(map);
 
     return r;
 }
 
-int proc_mprotect(struct proc *p, void *address, void *end, int new_prot) {
+int proc_mprotect(struct proc *p, void *address, uint64_t size, int new_prot) {
     int r = 0;
 
+    uint64_t alignedSize = (size + 0x3FFFull) & ~0x3FFFull;
     uint64_t addr = (uint64_t)address;
-    uint64_t addrend = (uint64_t)end;
+    uint64_t addrend = address + alignedSize;
 
     struct vmspace *vm = p->p_vmspace;
     struct vm_map *map = &vm->vm_map;
