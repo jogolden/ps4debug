@@ -315,43 +315,43 @@ void configure_socket(int fd) {
 
 void *broadcast_thread(void *arg) {
     struct sockaddr_in server;
-	struct sockaddr_in client;
+    struct sockaddr_in client;
     unsigned int clisize;
-	int serv;
-	int flag;
-	int r;
+    int serv;
+    int flag;
+    int r;
     uint32_t magic;
 
     uprintf("broadcast server started");
 
-	// setup server
-	server.sin_len = sizeof(server);
-	server.sin_family = AF_INET;
-	server.sin_addr.s_addr = IN_ADDR_ANY;
-	server.sin_port = sceNetHtons(BROADCAST_PORT);
-	memset(server.sin_zero, NULL, sizeof(server.sin_zero));
+    // setup server
+    server.sin_len = sizeof(server);
+    server.sin_family = AF_INET;
+    server.sin_addr.s_addr = IN_ADDR_ANY;
+    server.sin_port = sceNetHtons(BROADCAST_PORT);
+    memset(server.sin_zero, NULL, sizeof(server.sin_zero));
 
-	serv = sceNetSocket("broadsock", AF_INET, SOCK_DGRAM, 0);
+    serv = sceNetSocket("broadsock", AF_INET, SOCK_DGRAM, 0);
     if(serv < 0) {
         uprintf("failed to create broadcast server");
         return NULL;
     }
 
-	flag = 1;
-	sceNetSetsockopt(serv, SOL_SOCKET, SO_BROADCAST, (char *)&flag, sizeof(flag));
+    flag = 1;
+    sceNetSetsockopt(serv, SOL_SOCKET, SO_BROADCAST, (char *)&flag, sizeof(flag));
 
-	r = sceNetBind(serv, (struct sockaddr *)&server, sizeof(server));
+    r = sceNetBind(serv, (struct sockaddr *)&server, sizeof(server));
     if(r) {
         uprintf("failed to bind broadcast server");
         return NULL;
     }
     
-    // TODO: clean this up, but meh not too dirty? is it? hmmm
+    // TODO: XXX: clean this up, but meh not too dirty? is it? hmmm
     int libNet = sceKernelLoadStartModule("libSceNet.sprx", 0, NULL, 0, 0, 0);
     int (*sceNetRecvfrom)(int s, void *buf, unsigned int len, int flags, struct sockaddr *from, unsigned int *fromlen);
-	int (*sceNetSendto)(int s, void *msg, unsigned int len, int flags, struct sockaddr *to, unsigned int tolen);
-	RESOLVE(libNet, sceNetRecvfrom);
-	RESOLVE(libNet, sceNetSendto);
+    int (*sceNetSendto)(int s, void *msg, unsigned int len, int flags, struct sockaddr *to, unsigned int tolen);
+    RESOLVE(libNet, sceNetRecvfrom);
+    RESOLVE(libNet, sceNetSendto);
 
     while(1) {
         scePthreadYield();
@@ -360,14 +360,14 @@ void *broadcast_thread(void *arg) {
         clisize = sizeof(client);
         r = sceNetRecvfrom(serv, &magic, sizeof(uint32_t), 0, (struct sockaddr *)&client, &clisize);
 
-		if(r >= 0) {
-			uprintf("broadcast server received a message");
+        if(r >= 0) {
+            uprintf("broadcast server received a message");
             if(magic == BROADCAST_MAGIC) {
-			    sceNetSendto(serv, &magic, sizeof(uint32_t), 0, (struct sockaddr *)&client, clisize);
+                sceNetSendto(serv, &magic, sizeof(uint32_t), 0, (struct sockaddr *)&client, clisize);
             }
-		} else {
-			uprintf("sceNetRecvfrom failed");
-		}
+        } else {
+            uprintf("sceNetRecvfrom failed");
+        }
 
         sceKernelSleep(1);
     }

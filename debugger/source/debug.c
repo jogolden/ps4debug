@@ -127,7 +127,6 @@ int debug_watchpt_handle(int fd, struct cmd_packet *packet) {
     }
 
     // get the threads
-
     nlwps = ptrace(PT_GETNUMLWPS, curdbgctx->pid, NULL, 0);
     size = nlwps * sizeof(uint32_t);
     lwpids = (uint32_t *)pfmalloc(size);

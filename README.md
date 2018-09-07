@@ -17,14 +17,9 @@ Please look at the libdbg folder for a library to use with this payload.
 If you want to contribute, then feel free to make a pull request or open an issue with a bug that you have found! I am always in need of people to test for me. Join the PS4 Source Discord and look for golden. Also I need someone that is good at writing to spiff up this readme document. I am always in need of people to do work! It seems like I do everything...
 
 ### Coming Soon
-1. Multi client support for ps4debug (useful for tools + debugger at the same time etc)
-2. Fix error handling, add more error handling, and better error alerts
-3. Speed up networking code and add checksum
-4. Binary memory scanning on ps4 side (then a C# abstraction for all types)
-5. Allocate and free memory commands
-6. Remote Procedure Calling (half way there)
-7. Better C# library (but this is coming along as I work on everything else)
-8. Automatic UDP broadcast messages, no more typing in console ip address
+1. Fix error handling, add more error handling, and better error alerts
+2. Remote Procedure Calling (half way there)
+3. Better C# library (but this is coming along as I work on everything else)
 
 ##### Created by **golden**, Twitter [@cloverleafswag3](https://twitter.com/cloverleafswag3)
 ###### Shout out to ChendoChap, berkayylmao, 2much4u, idc, and zecoxao!
