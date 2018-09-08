@@ -16,10 +16,5 @@ Please look at the libdbg folder for a library to use with this payload.
 ### Contributing
 If you want to contribute, then feel free to make a pull request or open an issue with a bug that you have found! I am always in need of people to test for me. Join the PS4 Source Discord and look for golden. Also I need someone that is good at writing to spiff up this readme document. I am always in need of people to do work! It seems like I do everything...
 
-### Coming Soon
-1. Fix error handling, add more error handling, and better error alerts
-2. Remote Procedure Calling (half way there)
-3. Better C# library (but this is coming along as I work on everything else)
-
 ##### Created by **golden**, Twitter [@cloverleafswag3](https://twitter.com/cloverleafswag3)
 ###### Shout out to ChendoChap, berkayylmao, 2much4u, idc, and zecoxao!
