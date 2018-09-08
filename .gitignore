@@ -6,5 +6,5 @@
 temp.t
 .vscode
 .vs
-libdbg/csharp/bin/*
-libdbg/csharp/obj/*
+libdebug/csharp/bin/
+libdebug/csharp/obj/
