@@ -3,8 +3,8 @@
 *.elf
 *.rar
 *.zip
+*.dll
+*.pdb
 temp.t
 .vscode
 .vs
-libdebug/csharp/bin/
-libdebug/csharp/obj/
