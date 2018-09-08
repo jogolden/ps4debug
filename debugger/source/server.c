@@ -24,6 +24,8 @@ void free_client(struct server_client *svc) {
     if(svc->debugging) {
         debug_cleanup(&svc->dbgctx);
     }
+
+    memset(svc, NULL, sizeof(struct server_client));
 }
 
 int handle_version(int fd, struct cmd_packet *packet) {
@@ -174,7 +176,6 @@ int handle_client(struct server_client *svc) {
     struct cmd_packet packet;
     uint32_t rsize;
     uint32_t length;
-    uint32_t crc;
     void *data;
     int fd;
     int r;
@@ -263,13 +264,6 @@ int handle_client(struct server_client *svc) {
             packet.data = data;
         } else {
             packet.data = NULL;
-        }
-
-        // checksum
-        crc = crc32(0, data, length);
-        if(packet.crc && crc != packet.crc) {
-            uprintf("invalid packet checksum (calc %X vs got %X)", crc, packet.crc);
-            goto error;
         }
 
         // special case when attaching

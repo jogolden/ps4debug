@@ -178,12 +178,65 @@ int proc_maps_handle(int fd, struct cmd_packet *packet) {
 }
 
 int proc_install_handle(int fd, struct cmd_packet *packet) {
-    __asm("int 3");
+    struct cmd_proc_install_packet *ip;
+    struct sys_proc_install_args args;
+    struct cmd_proc_install_response resp;
+
+    ip = (struct cmd_proc_install_packet *)packet->data;
+
+    if(!ip) {
+        net_send_status(fd, CMD_DATA_NULL);
+        return 1;
+    }
+
+    args.stubentryaddr = NULL;
+    sys_proc_cmd(ip->pid, SYS_PROC_INSTALL, &args);
+
+    if(!args.stubentryaddr) {
+        net_send_status(fd, CMD_DATA_NULL);
+        return 1;
+    }
+
+    resp.rpcstub = args.stubentryaddr;
+
+    net_send_status(fd, CMD_SUCCESS);
+    net_send_data(fd, &resp, CMD_PROC_INSTALL_RESPONSE_SIZE);
+
     return 0;
 }
 
 int proc_call_handle(int fd, struct cmd_packet *packet) {
-    __asm("int 3");
+    struct cmd_proc_call_packet *cp;
+    struct sys_proc_call_args args;
+    struct cmd_proc_call_response resp;
+
+    cp = (struct cmd_proc_call_packet *)packet->data;
+
+    if(!cp) {
+        net_send_status(fd, CMD_DATA_NULL);
+        return 1;
+    }
+
+    // copy over the arguments for the call
+    args.pid = cp->pid;
+    args.rpcstub = cp->rpcstub;
+    args.rax = NULL;
+    args.rip = cp->rpc_rip;
+    args.rdi = cp->rpc_rdi;
+    args.rsi = cp->rpc_rsi;
+    args.rdx = cp->rpc_rdx;
+    args.rcx = cp->rpc_rcx;
+    args.r8 = cp->rpc_r8;
+    args.r9 = cp->rpc_r9;
+
+    sys_proc_cmd(cp->pid, SYS_PROC_CALL, &args);
+
+    resp.pid = cp->pid;
+    resp.rpc_rax = args.rax;
+
+    net_send_status(fd, CMD_SUCCESS);
+    net_send_data(fd, &resp, CMD_PROC_CALL_RESPONSE_SIZE);
+
     return 0;
 }
 

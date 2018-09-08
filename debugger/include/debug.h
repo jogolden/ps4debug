@@ -158,7 +158,8 @@ int debug_getfpregs_handle(int fd, struct cmd_packet *packet);
 int debug_setfpregs_handle(int fd, struct cmd_packet *packet);
 int debug_getdbregs_handle(int fd, struct cmd_packet *packet);
 int debug_setdbregs_handle(int fd, struct cmd_packet *packet);
-int debug_start_run_handle(int fd, struct cmd_packet *packet);
+int debug_stopgo_handle(int fd, struct cmd_packet *packet);
+int debug_thrinfo_handle(int fd, struct cmd_packet *packet);
 
 int connect_debugger(struct debug_context *dbgctx, struct sockaddr_in *client);
 void debug_cleanup(struct debug_context *dbgctx);

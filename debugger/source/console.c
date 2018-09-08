@@ -77,6 +77,21 @@ int console_notify_handle(int fd, struct cmd_packet *packet) {
     return 1;
 }
 
+int console_info_handle(int fd, struct cmd_packet *packet) {
+    struct cmd_console_info_response resp;
+    size_t len;
+
+    //extern int (*sysctl)(int *name, unsigned int namelen, char *oldval, size_t *oldlen, char *newval, size_t newlen);
+    //extern int (*sysctlbyname)(char *name, char *oldval, size_t *oldlen, char *newval, size_t newlen);
+
+    // TODO: implement this
+
+    net_send_status(fd, CMD_SUCCESS);
+    //net_send_data(fd, &resp, CMD_CONSOLE_INFO_RESPONSE_SIZE);
+
+    return 0;
+}
+
 int console_handle(int fd, struct cmd_packet *packet) {
     switch(packet->cmd) {
         case CMD_CONSOLE_REBOOT:
@@ -87,6 +102,8 @@ int console_handle(int fd, struct cmd_packet *packet) {
             return console_print_handle(fd, packet);
         case CMD_CONSOLE_NOTIFY:
             return console_notify_handle(fd, packet);
+        case CMD_CONSOLE_INFO:
+            return console_info_handle(fd, packet);
     }
 
     return 0;

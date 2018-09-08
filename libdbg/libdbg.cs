@@ -10,117 +10,6 @@ using System.Security.Cryptography;
 
 namespace libdebug
 {
-    /// <summary>
-    /// Implements a 32-bit CRC hash algorithm compatible with Zip etc.
-    /// </summary>
-    /// <remarks>
-    /// Crc32 should only be used for backward compatibility with older file formats
-    /// and algorithms. It is not secure enough for new applications.
-    /// If you need to call multiple times for the same data either use the HashAlgorithm
-    /// interface or remember that the result of one Compute call needs to be ~ (XOR) before
-    /// being passed in as the seed for the next Compute call.
-    /// </remarks>
-    public class Crc32 : HashAlgorithm
-    {
-        public const UInt32 DefaultPolynomial = 0xedb88320u;
-        public const UInt32 DefaultSeed = 0xffffffffu;
-
-        static UInt32[] defaultTable;
-
-        readonly UInt32 seed;
-        readonly UInt32[] table;
-        UInt32 hash;
-
-        public Crc32()
-            : this(DefaultPolynomial, DefaultSeed)
-        {
-        }
-
-        public Crc32(UInt32 polynomial, UInt32 seed)
-        {
-            if (!BitConverter.IsLittleEndian)
-                throw new PlatformNotSupportedException("Not supported on Big Endian processors");
-
-            table = InitializeTable(polynomial);
-            this.seed = hash = seed;
-        }
-
-        public override void Initialize()
-        {
-            hash = seed;
-        }
-
-        protected override void HashCore(byte[] array, int ibStart, int cbSize)
-        {
-            hash = CalculateHash(table, hash, array, ibStart, cbSize);
-        }
-
-        protected override byte[] HashFinal()
-        {
-            var hashBuffer = UInt32ToBigEndianBytes(~hash);
-            HashValue = hashBuffer;
-            return hashBuffer;
-        }
-
-        public override int HashSize { get { return 32; } }
-
-        public static UInt32 Compute(byte[] buffer)
-        {
-            return Compute(DefaultSeed, buffer);
-        }
-
-        public static UInt32 Compute(UInt32 seed, byte[] buffer)
-        {
-            return Compute(DefaultPolynomial, seed, buffer);
-        }
-
-        public static UInt32 Compute(UInt32 polynomial, UInt32 seed, byte[] buffer)
-        {
-            return ~CalculateHash(InitializeTable(polynomial), seed, buffer, 0, buffer.Length);
-        }
-
-        static UInt32[] InitializeTable(UInt32 polynomial)
-        {
-            if (polynomial == DefaultPolynomial && defaultTable != null)
-                return defaultTable;
-
-            var createTable = new UInt32[256];
-            for (var i = 0; i < 256; i++)
-            {
-                var entry = (UInt32)i;
-                for (var j = 0; j < 8; j++)
-                    if ((entry & 1) == 1)
-                        entry = (entry >> 1) ^ polynomial;
-                    else
-                        entry = entry >> 1;
-                createTable[i] = entry;
-            }
-
-            if (polynomial == DefaultPolynomial)
-                defaultTable = createTable;
-
-            return createTable;
-        }
-
-        static UInt32 CalculateHash(UInt32[] table, UInt32 seed, IList<byte> buffer, int start, int size)
-        {
-            var hash = seed;
-            for (var i = start; i < start + size; i++)
-                hash = (hash >> 8) ^ table[buffer[i] ^ hash & 0xff];
-            return hash;
-        }
-
-        static byte[] UInt32ToBigEndianBytes(UInt32 uint32)
-        {
-            var result = BitConverter.GetBytes(uint32);
-
-            if (BitConverter.IsLittleEndian)
-                Array.Reverse(result);
-
-            return result;
-        }
-    }
-
     public class Process
     {
         public string name;
@@ -275,6 +164,15 @@ namespace libdebug
         public string titleid;
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 64)]
         public string contentid;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
+    public struct ThreadInfo
+    {
+        public int pid;
+        public int priority;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+        public string name;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -437,14 +335,13 @@ namespace libdebug
         //  struct cmd_packet {
         //    uint32_t magic;
         //    uint32_t cmd;
-        //    uint32_t crc;
         //    uint32_t datalen;
         //    // (field not actually part of packet, comes after)
         //    uint8_t* data;
         //  }
         //  __attribute__((packed));
-        //  #define CMD_PACKET_SIZE 16
-        private const int CMD_PACKET_SIZE = 16;
+        //  #define CMD_PACKET_SIZE 12
+        private const int CMD_PACKET_SIZE = 12;
         public enum CMDS : uint
         {
             CMD_VERSION = 0xBD000001,
@@ -476,6 +373,7 @@ namespace libdebug
             CMD_DEBUG_GETDBGREGS = 0xBDBB000C,
             CMD_DEBUG_SETDBGREGS = 0xBDBB000D,
             CMD_DEBUG_STOPGO = 0xBDBB0010,
+            CMD_DEBUG_THRINFO = 0xBDBB0011,
 
             CMD_KERN_BASE = 0xBDCC0001,
             CMD_KERN_READ = 0xBDCC0002,
@@ -485,6 +383,7 @@ namespace libdebug
             CMD_CONSOLE_END = 0xBDDD0002,
             CMD_CONSOLE_PRINT = 0xBDDD0003,
             CMD_CONSOLE_NOTIFY = 0xBDDD0004,
+            CMD_CONSOLE_INFO = 0xBDDD0005,
         };
 
         public enum CMD_STATUS : uint
@@ -493,7 +392,8 @@ namespace libdebug
             CMD_ERROR = 0xF0000001,
             CMD_TOO_MUCH_DATA = 0xF0000002,
             CMD_DATA_NULL = 0xF0000003,
-            CMD_ALREADY_DEBUG = 0xF0000004
+            CMD_ALREADY_DEBUG = 0xF0000004,
+            CMD_INVALID_INDEX = 0xF0000005
         };
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -501,7 +401,6 @@ namespace libdebug
         {
             public uint magic;
             public uint cmd;
-            public uint crc;
             public uint datalen;
         }
 
@@ -510,6 +409,8 @@ namespace libdebug
         private const int CMD_PROC_READ_PACKET_SIZE = 16;
         private const int CMD_PROC_WRITE_PACKET_SIZE = 16;
         private const int CMD_PROC_MAPS_PACKET_SIZE = 4;
+        private const int CMD_PROC_INSTALL_PACKET_SIZE = 4;
+        private const int CMD_PROC_CALL_PACKET_SIZE = 68;
         private const int CMD_PROC_ELF_PACKET_SIZE = 8;
         private const int CMD_PROC_PROTECT_PACKET_SIZE = 20;
         private const int CMD_PROC_INFO_PACKET_SIZE = 4;
@@ -524,6 +425,7 @@ namespace libdebug
         private const int CMD_DEBUG_GETREGS_PACKET_SIZE = 4;
         private const int CMD_DEBUG_SETREGS_PACKET_SIZE = 8;
         private const int CMD_DEBUG_STOPGO_PACKET_SIZE = 4;
+        private const int CMD_DEBUG_THRINFO_PACKET_SIZE = 4;
         // kern
         private const int CMD_KERN_READ_PACKET_SIZE = 12;
         private const int CMD_KERN_WRITE_PACKET_SIZE = 12;
@@ -535,10 +437,13 @@ namespace libdebug
         // proc
         private const int PROC_LIST_ENTRY_SIZE = 36;
         private const int PROC_MAP_ENTRY_SIZE = 58;
+        private const int PROC_INSTALL_SIZE = 8;
+        private const int PROC_CALL_SIZE = 12;
         private const int PROC_PROC_INFO_SIZE = 188;
         private const int PROC_ALLOC_SIZE = 8;
         // debug
         private const int DEBUG_INTERRUPT_SIZE = 0x4A0;
+        private const int DEBUG_THRINFO_SIZE = 40;
         // kern
         private const int KERN_BASE_SIZE = 8;
         // console
@@ -637,7 +542,6 @@ namespace libdebug
             CMDPacket packet = new CMDPacket();
             packet.magic = CMD_PACKET_MAGIC;
             packet.cmd = (uint)cmd;
-            packet.crc = 0;
             packet.datalen = (uint)length;
 
             byte[] data = null;
@@ -688,10 +592,9 @@ namespace libdebug
 
                     rs.Write(bytes, 0, bytes.Length);
                 }
+
                 data = rs.ToArray();
                 rs.Dispose();
-
-                packet.crc = Crc32.Compute(data);
             }
 
             SendData(GetBytesFromObject(packet), CMD_PACKET_SIZE);
@@ -819,6 +722,7 @@ namespace libdebug
             UdpClient uc = new UdpClient();
             IPEndPoint server = new IPEndPoint(IPAddress.Any, 0);
             uc.EnableBroadcast = true;
+            uc.Client.ReceiveTimeout = 4000;
 
             byte[] magic = BitConverter.GetBytes(BROADCAST_MAGIC);
 
@@ -1011,11 +915,14 @@ namespace libdebug
         /// </summary>
         /// <param name="pid">Process ID</param>
         /// <returns></returns>
-        private ulong InstallRPC(int pid)
+        public ulong InstallRPC(int pid)
         {
             CheckConnected();
 
-            return 0;
+            SendCMDPacket(CMDS.CMD_PROC_INTALL, CMD_PROC_INSTALL_PACKET_SIZE, pid);
+            CheckStatus();
+
+            return BitConverter.ToUInt64(ReceiveData(PROC_INSTALL_SIZE), 0);
         }
 
         /// <summary>
@@ -1026,10 +933,121 @@ namespace libdebug
         /// <param name="address">Address to call</param>
         /// <param name="args">Arguments array</param>
         /// <returns></returns>
-        private ulong Call(int pid, ulong rpcstub, ulong address, params object[] args)
+        public ulong Call(int pid, ulong rpcstub, ulong address, params object[] args)
         {
             CheckConnected();
-            return 0;
+
+            // need to do this in a custom format
+            CMDPacket packet = new CMDPacket();
+            packet.magic = CMD_PACKET_MAGIC;
+            packet.cmd = (uint)CMDS.CMD_PROC_CALL;
+            packet.datalen = (uint)CMD_PROC_CALL_PACKET_SIZE;
+            SendData(GetBytesFromObject(packet), CMD_PACKET_SIZE);
+
+            MemoryStream rs = new MemoryStream();
+            rs.Write(BitConverter.GetBytes(pid), 0, sizeof(int));
+            rs.Write(BitConverter.GetBytes(rpcstub), 0, sizeof(ulong));
+            rs.Write(BitConverter.GetBytes(address), 0, sizeof(ulong));
+
+            int num = 0;
+            foreach (object arg in args)
+            {
+                byte[] bytes = new byte[8];
+
+                switch (arg)
+                {
+                    case char _:
+                        {
+                            byte[] tmp = BitConverter.GetBytes((char)arg);
+                            Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(char));
+
+                            byte[] pad = new byte[sizeof(ulong) - sizeof(char)];
+                            Buffer.BlockCopy(pad, 0, bytes, sizeof(char), pad.Length);
+                            break;
+                        }
+                    case byte _:
+                        {
+                            byte[] tmp = BitConverter.GetBytes((byte)arg);
+                            Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(byte));
+
+                            byte[] pad = new byte[sizeof(ulong) - sizeof(byte)];
+                            Buffer.BlockCopy(pad, 0, bytes, sizeof(byte), pad.Length);
+                            break;
+                        }
+                    case short _:
+                        {
+                            byte[] tmp = BitConverter.GetBytes((short)arg);
+                            Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(short));
+
+                            byte[] pad = new byte[sizeof(ulong) - sizeof(short)];
+                            Buffer.BlockCopy(pad, 0, bytes, sizeof(short), pad.Length);
+                            break;
+                        }
+                    case ushort _:
+                        {
+                            byte[] tmp = BitConverter.GetBytes((ushort)arg);
+                            Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(ushort));
+
+                            byte[] pad = new byte[sizeof(ulong) - sizeof(ushort)];
+                            Buffer.BlockCopy(pad, 0, bytes, sizeof(ushort), pad.Length);
+                            break;
+                        }
+                    case int _:
+                        {
+                            byte[] tmp = BitConverter.GetBytes((int)arg);
+                            Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(int));
+
+                            byte[] pad = new byte[sizeof(ulong) - sizeof(int)];
+                            Buffer.BlockCopy(pad, 0, bytes, sizeof(int), pad.Length);
+                            break;
+                        }
+                    case uint _:
+                        {
+                            byte[] tmp = BitConverter.GetBytes((uint)arg);
+                            Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(uint));
+
+                            byte[] pad = new byte[sizeof(ulong) - sizeof(uint)];
+                            Buffer.BlockCopy(pad, 0, bytes, sizeof(uint), pad.Length);
+                            break;
+                        }
+                    case long _:
+                        {
+                            byte[] tmp = BitConverter.GetBytes((long)arg);
+                            Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(long));
+                            break;
+                        }
+                    case ulong _:
+                        {
+                            byte[] tmp = BitConverter.GetBytes((ulong)arg);
+                            Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(ulong));
+                            break;
+                        }
+                }
+
+                rs.Write(bytes, 0, bytes.Length);
+                num++;
+            }
+
+            if (num > 6)
+            {
+                throw new Exception("libdbg: too many arguments");
+            }
+
+            if (num < 6)
+            {
+                for (int i = 0; i < (6 - num); i++)
+                {
+                    rs.Write(BitConverter.GetBytes((ulong)0), 0, sizeof(ulong));
+                }
+            }
+
+            SendData(rs.ToArray(), CMD_PROC_CALL_PACKET_SIZE);
+            rs.Dispose();
+
+            CheckStatus();
+
+            byte[] data = ReceiveData(PROC_CALL_SIZE);
+            return BitConverter.ToUInt64(data, 4);
         }
 
         /// <summary>
@@ -1037,7 +1055,6 @@ namespace libdebug
         /// </summary>
         /// <param name="pid">Process ID</param>
         /// <param name="elf">Elf</param>
-        /// <returns></returns>
         public void LoadElf(int pid, byte[] elf)
         {
             CheckConnected();
@@ -1053,7 +1070,6 @@ namespace libdebug
         /// </summary>
         /// <param name="pid">Process ID</param>
         /// <param name="filename">Elf filename</param>
-        /// <returns></returns>
         public void LoadElf(int pid, string filename)
         {
             LoadElf(pid, File.ReadAllBytes(filename));
@@ -1331,6 +1347,21 @@ namespace libdebug
         }
 
         /// <summary>
+        /// Get thread information
+        /// </summary>
+        /// <returns></returns>
+        public ThreadInfo GetThreadInfo(uint lwpid)
+        {
+            CheckConnected();
+            CheckDebugging();
+
+            SendCMDPacket(CMDS.CMD_DEBUG_THRINFO, CMD_DEBUG_THRINFO_PACKET_SIZE, lwpid);
+            CheckStatus();
+
+            return (ThreadInfo)GetObjectFromBytes(ReceiveData(DEBUG_THRINFO_SIZE), typeof(ThreadInfo));
+        }
+
+        /// <summary>
         /// Stop a thread from running
         /// </summary>
         /// <param name="lwpid">Thread id</param>
@@ -1539,6 +1570,19 @@ namespace libdebug
             SendCMDPacket(CMDS.CMD_CONSOLE_NOTIFY, CMD_CONSOLE_NOTIFY_PACKET_SIZE, messageType, raw.Length);
             SendData(Encoding.ASCII.GetBytes(raw), raw.Length);
             CheckStatus();
+        }
+
+        /// <summary>
+        /// Console information
+        /// </summary>
+        public void GetConsoleInformation()
+        {
+            CheckConnected();
+
+            SendCMDPacket(CMDS.CMD_CONSOLE_INFO, 0);
+            CheckStatus();
+
+            // TODO return the data
         }
 
         /** read wrappers **/

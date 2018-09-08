@@ -232,6 +232,24 @@ int sys_proc_info_handle(struct proc *p, struct sys_proc_info_args *args) {
     return 0;
 }
 
+int sys_proc_thrinfo_handle(struct proc *p, struct sys_proc_thrinfo_args *args) {
+    struct thread *thr;
+
+    TAILQ_FOREACH(thr, &p->p_threads, td_plist) {
+        if(thr->tid == args->lwpid) {
+            args->priority = thr->td_priority;
+            memcpy(args->name, thr->td_name, sizeof(args->name));
+            break;
+        }
+    }
+
+    if(thr && thr->tid == args->lwpid) {
+        return 0;
+    }
+
+    return 1;
+}
+
 int sys_proc_cmd(struct thread *td, struct sys_proc_cmd_args *uap) {
     struct proc *p;
     int r;
@@ -266,6 +284,9 @@ int sys_proc_cmd(struct thread *td, struct sys_proc_cmd_args *uap) {
             break;
         case SYS_PROC_INFO:
             r = sys_proc_info_handle(p, (struct sys_proc_info_args *)uap->data);
+            break;
+        case SYS_PROC_THRINFO:
+            r = sys_proc_thrinfo_handle(p, (struct sys_proc_thrinfo_args *)uap->data);
             break;
         default:
             r = 1;

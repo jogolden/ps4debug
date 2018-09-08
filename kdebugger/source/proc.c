@@ -192,7 +192,7 @@ int proc_mprotect(struct proc *p, void *address, uint64_t size, int new_prot) {
 
     uint64_t alignedSize = (size + 0x3FFFull) & ~0x3FFFull;
     uint64_t addr = (uint64_t)address;
-    uint64_t addrend = address + alignedSize;
+    uint64_t addrend = addr + alignedSize;
 
     struct vmspace *vm = p->p_vmspace;
     struct vm_map *map = &vm->vm_map;

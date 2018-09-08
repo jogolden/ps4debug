@@ -7,7 +7,6 @@
 
 #include <ps4.h>
 #include "errno.h"
-#include "crc32.h"
 #include "kdbg.h"
 
 #define PACKET_VERSION          "1.2"
@@ -42,6 +41,7 @@
 #define CMD_DEBUG_GETDBGREGS    0xBDBB000C
 #define CMD_DEBUG_SETDBGREGS    0xBDBB000D
 #define CMD_DEBUG_STOPGO        0xBDBB0010
+#define CMD_DEBUG_THRINFO       0xBDBB0011
 
 #define CMD_KERN_BASE	    	0xBDCC0001
 #define CMD_KERN_READ           0xBDCC0002
@@ -51,6 +51,7 @@
 #define CMD_CONSOLE_END         0xBDDD0002
 #define CMD_CONSOLE_PRINT		0xBDDD0003
 #define CMD_CONSOLE_NOTIFY		0xBDDD0004
+#define CMD_CONSOLE_INFO		0xBDDD0005
 
 #define VALID_CMD(cmd)          (((cmd & 0xFF000000) >> 24) == 0xBD)
 #define VALID_PROC_CMD(cmd)     (((cmd & 0x00FF0000) >> 16) == 0xAA)
@@ -63,18 +64,18 @@
 #define CMD_TOO_MUCH_DATA		0xF0000002
 #define CMD_DATA_NULL			0xF0000003
 #define CMD_ALREADY_DEBUG		0xF0000004
+#define CMD_INVALID_INDEX		0xF0000005
 
 #define CMD_FATAL_STATUS(s) ((s >> 28) == 15)
 
 struct cmd_packet {
     uint32_t magic;
     uint32_t cmd;
-    uint32_t crc;
     uint32_t datalen;
     // (field not actually part of packet, comes after)
     void *data;
 } __attribute__((packed));
-#define CMD_PACKET_SIZE 16
+#define CMD_PACKET_SIZE 12
 
 // proc
 struct cmd_proc_read_packet {
@@ -99,7 +100,11 @@ struct cmd_proc_maps_packet {
 struct cmd_proc_install_packet {
     uint32_t pid;
 } __attribute__((packed));
+struct cmd_proc_install_response {
+    uint64_t rpcstub;
+} __attribute__((packed));
 #define CMD_PROC_INSTALL_PACKET_SIZE 4
+#define CMD_PROC_INSTALL_RESPONSE_SIZE 8
 
 struct cmd_proc_call_packet {
     uint32_t pid;
@@ -249,6 +254,18 @@ struct cmd_debug_stopgo_packet {
 } __attribute__((packed));
 #define CMD_DEBUG_STOPGO_PACKET_SIZE 4
 
+struct cmd_debug_thrinfo_packet {
+    uint32_t lwpid;
+} __attribute__((packed));
+struct cmd_debug_thrinfo_response {
+    uint32_t lwpid;
+    uint32_t priority;
+    char name[32];
+    // TODO: add more information
+} __attribute__((packed));
+#define CMD_DEBUG_THRINFO_PACKET_SIZE 4
+#define CMD_DEBUG_THRINFO_RESPONSE_SIZE 40
+
 // kern
 struct cmd_kern_read_packet {
     uint64_t address;
@@ -274,6 +291,11 @@ struct cmd_console_notify_packet {
 } __attribute__((packed));
 #define CMD_CONSOLE_NOTIFY_PACKET_SIZE 8
 
+struct cmd_console_info_response {
+    // todo
+} __attribute__((packed));
+#define CMD_CONSOLE_INFO_RESPONSE_SIZE 8
+
 #define MAX_BREAKPOINTS 30
 #define MAX_WATCHPOINTS 4
 
@@ -294,7 +316,10 @@ struct debug_context {
     int pid;
     int dbgfd;
     struct debug_breakpoint breakpoints[MAX_BREAKPOINTS];
-    struct debug_watchpoint watchpoints[MAX_WATCHPOINTS];
+    // XXX: use actual __dbreg64 structure please
+    struct {
+        uint64_t dr[16];
+    } watchdata;
 };
 
 struct server_client {

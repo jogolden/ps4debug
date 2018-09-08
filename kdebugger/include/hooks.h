@@ -40,6 +40,7 @@ int sys_proc_rw(struct thread *td, struct sys_proc_rw_args *uap);
 #define SYS_PROC_CALL       6
 #define SYS_PROC_ELF        7
 #define SYS_PROC_INFO       8
+#define SYS_PROC_THRINFO    9
 struct sys_proc_alloc_args {
     uint64_t address;
     uint64_t length;
@@ -81,6 +82,11 @@ struct sys_proc_info_args {
     char path[64];
     char titleid[16];
     char contentid[64];
+} __attribute__((packed));
+struct sys_proc_thrinfo_args {
+    uint32_t lwpid;
+    uint32_t priority;
+    char name[32];
 } __attribute__((packed));
 struct sys_proc_cmd_args {
     uint64_t pid;

@@ -79,8 +79,8 @@ int debug_breakpt_handle(int fd, struct cmd_packet *packet) {
         return 1;
     }
 
-    if(bp->index < 0 && bp->index >= MAX_BREAKPOINTS) {
-        net_send_status(fd, CMD_ERROR);
+    if(bp->index >= MAX_BREAKPOINTS) {
+        net_send_status(fd, CMD_INVALID_INDEX);
         return 1;
     }
 
@@ -108,7 +108,7 @@ int debug_breakpt_handle(int fd, struct cmd_packet *packet) {
 
 int debug_watchpt_handle(int fd, struct cmd_packet *packet) {
     struct cmd_debug_watchpt_packet *wp;
-    struct __dbreg64 dbreg64;
+    struct __dbreg64 *dbreg64;
     uint32_t *lwpids;
     int nlwps;
     int r;
@@ -123,6 +123,11 @@ int debug_watchpt_handle(int fd, struct cmd_packet *packet) {
 
     if(!wp) {
         net_send_status(fd, CMD_SUCCESS);
+        return 1;
+    }
+
+    if(wp->index >= MAX_WATCHPOINTS) {
+        net_send_status(fd, CMD_INVALID_INDEX);
         return 1;
     }
 
@@ -141,29 +146,23 @@ int debug_watchpt_handle(int fd, struct cmd_packet *packet) {
         goto finish;
     }
 
-    // get the current dr7
-    // TODO: find a better way? we just use the first one
-    r = ptrace(PT_GETDBREGS, lwpids[0], &dbreg64, NULL);
-    if (r == -1 && errno) {
-        net_send_status(fd, CMD_ERROR);
-        goto finish;
-    }
+    dbreg64 = (struct __dbreg64 *)&curdbgctx->watchdata;
 
     // setup the watchpoint
-    dbreg64.dr[7] &= ~DBREG_DR7_MASK(wp->index);
+    dbreg64->dr[7] &= ~DBREG_DR7_MASK(wp->index);
     if(wp->enabled) {
-        dbreg64.dr[wp->index] = wp->address;
-        dbreg64.dr[7] |= DBREG_DR7_SET(wp->index, wp->length, wp->breaktype, DBREG_DR7_LOCAL_ENABLE | DBREG_DR7_GLOBAL_ENABLE);
+        dbreg64->dr[wp->index] = wp->address;
+        dbreg64->dr[7] |= DBREG_DR7_SET(wp->index, wp->length, wp->breaktype, DBREG_DR7_LOCAL_ENABLE | DBREG_DR7_GLOBAL_ENABLE);
     } else {
-        dbreg64.dr[wp->index] = NULL;
-        dbreg64.dr[7] |= DBREG_DR7_SET(wp->index, NULL, NULL, DBREG_DR7_DISABLE);
+        dbreg64->dr[wp->index] = NULL;
+        dbreg64->dr[7] |= DBREG_DR7_SET(wp->index, NULL, NULL, DBREG_DR7_DISABLE);
     }
 
-    //uprintf("dr%i: %llX dr7: %llX", wp->index, wp->address, dbreg64.dr[7]);
+    //uprintf("dr%i: %llX dr7: %llX", wp->index, wp->address, dbreg64->dr[7]);
 
     // for each current lwpid edit the watchpoint
     for(int i = 0; i < nlwps; i++) {
-        r = ptrace(PT_SETDBREGS, lwpids[i], &dbreg64, NULL);
+        r = ptrace(PT_SETDBREGS, lwpids[i], dbreg64, NULL);
         if (r == -1 && errno) {
             net_send_status(fd, CMD_ERROR);
             goto finish;
@@ -432,6 +431,7 @@ int debug_setdbregs_handle(int fd, struct cmd_packet *packet) {
     }
 
     sp = (struct cmd_debug_setregs_packet *)packet->data;
+
     if (!sp) {
         net_send_status(fd, CMD_ERROR);
         return 1;
@@ -456,6 +456,11 @@ int debug_stopgo_handle(int fd, struct cmd_packet *packet) {
     int signal;
     int r;
 
+    if (curdbgctx->pid == 0) {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+
     sp = (struct cmd_debug_stopgo_packet *)packet->data;
 
     if(!sp) {
@@ -478,6 +483,36 @@ int debug_stopgo_handle(int fd, struct cmd_packet *packet) {
     }
 
     net_send_status(fd, CMD_SUCCESS);
+
+    return 0;
+}
+
+int debug_thrinfo_handle(int fd, struct cmd_packet *packet) {
+    struct cmd_debug_thrinfo_packet *tp;
+    struct cmd_debug_thrinfo_response resp;
+    struct sys_proc_thrinfo_args args;
+
+    if (curdbgctx->pid == 0) {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+
+    tp = (struct cmd_debug_thrinfo_packet *)packet->data;
+
+    if(!tp) {
+        net_send_status(fd, CMD_DATA_NULL);
+        return 1;
+    }
+
+    args.lwpid = tp->lwpid;
+    sys_proc_cmd(curdbgctx->pid, SYS_PROC_THRINFO, &args);
+    
+    resp.lwpid = args.lwpid;
+    resp.priority = args.priority;
+    memcpy(resp.name, args.name, sizeof(resp.name));
+
+    net_send_status(fd, CMD_SUCCESS);
+    net_send_data(fd, &resp, CMD_DEBUG_THRINFO_RESPONSE_SIZE);
 
     return 0;
 }
@@ -580,6 +615,8 @@ int debug_handle(int fd, struct cmd_packet *packet) {
             return debug_setdbregs_handle(fd, packet);
         case CMD_DEBUG_STOPGO:
             return debug_stopgo_handle(fd, packet);
+        case CMD_DEBUG_THRINFO:
+            return debug_thrinfo_handle(fd, packet);
 
         // TOOD: implement more commands
         // single stepping etc
