@@ -1,0 +1,6 @@
+C:\Users\golden\Development\ps4debug\libdbg\csharp\bin\Debug\libdebug.dll
+C:\Users\golden\Development\ps4debug\libdbg\csharp\bin\Debug\libdebug.pdb
+C:\Users\golden\Development\ps4debug\libdbg\csharp\obj\Debug\libdebug.csprojAssemblyReference.cache
+C:\Users\golden\Development\ps4debug\libdbg\csharp\obj\Debug\libdebug.csproj.CoreCompileInputs.cache
+C:\Users\golden\Development\ps4debug\libdbg\csharp\obj\Debug\libdebug.dll
+C:\Users\golden\Development\ps4debug\libdbg\csharp\obj\Debug\libdebug.pdb
