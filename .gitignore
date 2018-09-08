@@ -5,3 +5,6 @@
 *.zip
 temp.t
 .vscode
+.vs
+libdbg/csharp/bin/*
+libdbg/csharp/obj/*
