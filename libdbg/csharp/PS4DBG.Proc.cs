@@ -380,12 +380,15 @@ namespace libdebug
 
                 return (T)(object)str;
             }
+            
             if (typeof(T) == typeof(byte[]))
             {
                 throw new NotSupportedException("byte arrays are not supported, use ReadMemory(int pid, ulong address, int size)");
             }
+
             return (T)GetObjectFromBytes(ReadMemory(pid, address, Marshal.SizeOf(typeof(T))), typeof(T));
         }
+
         public void WriteMemory<T>(int pid, ulong address, T value)
         {
             if (typeof(T) == typeof(string))
@@ -393,11 +396,13 @@ namespace libdebug
                 WriteMemory(pid, address, Encoding.ASCII.GetBytes((string)(object)value + (char)0x0));
                 return;
             }
+
             if (typeof(T) == typeof(byte[]))
             {
                 WriteMemory(pid, address, (byte[])(object)value);
                 return;
             }
+            
             WriteMemory(pid, address, GetBytesFromObject(value));
         }
     }

@@ -376,8 +376,5 @@ namespace libdebug
             SendData(GetBytesFromObject(dbregs), DEBUG_DBGREGS_SIZE);
             CheckStatus();
         }
-
-
-
     }
 }

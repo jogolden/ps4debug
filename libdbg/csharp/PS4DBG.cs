@@ -10,7 +10,6 @@ namespace libdebug
 {
     public partial class PS4DBG
     {
-
         private Socket sock = null;
         private IPEndPoint enp = null;
 
@@ -468,14 +467,5 @@ namespace libdebug
 
             return ConvertASCII(data, 0);
         }
-
-
-
-
-
-        
-
-        
-
     }
 }
