@@ -333,7 +333,7 @@ namespace libdebug
             UnknownInitialValue
         }
 
-        public List<ulong> ScanProcess<T>(int pid, ScanCompareType compareType, T value, T extraValue = default(T))
+        public List<ulong> ScanProcess<T>(int pid, ScanCompareType compareType, T value, T extraValue = default)
         {
             CheckConnected();
 
@@ -475,11 +475,11 @@ namespace libdebug
         /// <param name="length">Length</param>
         /// <param name="newprot">New protection</param>
         /// <returns></returns>
-        public void ChangeProtection(int pid, ulong address, uint length, VM_PROTECTIONS newprot)
+        public void ChangeProtection(int pid, ulong address, uint length, VM_PROTECTIONS newProt)
         {
             CheckConnected();
 
-            SendCMDPacket(CMDS.CMD_PROC_PROTECT, CMD_PROC_PROTECT_PACKET_SIZE, pid, address, length, (uint)newprot);
+            SendCMDPacket(CMDS.CMD_PROC_PROTECT, CMD_PROC_PROTECT_PACKET_SIZE, pid, address, length, (uint)newProt);
             CheckStatus();
         }
 
