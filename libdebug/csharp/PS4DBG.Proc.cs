@@ -333,7 +333,7 @@ namespace libdebug
             UnknownInitialValue
         }
 
-        public List<ulong> ScanProcess<T>(int pid, ScanCompareType compareType, T value, T extraValue = default(T))
+        public List<ulong> ScanProcess<T>(int pid, ScanCompareType compareType, T value, T extraValue = default)
         {
             CheckConnected();
 
@@ -342,104 +342,99 @@ namespace libdebug
             byte[] valueBuffer, extraValueBuffer = null;
 
             // fill in variables
-            switch (Type.GetTypeCode(typeof(T)))
+            switch (value)
             {
-                case TypeCode.Boolean:
+                case bool b:
                     valueType = ScanValueType.valTypeUInt8;
                     typeLength = 1;
-                    valueBuffer = BitConverter.GetBytes((bool)(object)value);
+                    valueBuffer = BitConverter.GetBytes(b);
                     if (extraValue != null)
                         extraValueBuffer = BitConverter.GetBytes((bool)(object)extraValue);
                     break;
-                case TypeCode.SByte:
+                case sbyte sb:
                     valueType = ScanValueType.valTypeInt8;
+                    valueBuffer = BitConverter.GetBytes(sb);
                     typeLength = 1;
-                    valueBuffer = BitConverter.GetBytes((SByte)(object)value);
                     if (extraValue != null)
-                        extraValueBuffer = BitConverter.GetBytes((SByte)(object)extraValue);
+                        extraValueBuffer = BitConverter.GetBytes((sbyte)(object)extraValue);
                     break;
-                case TypeCode.Byte:
+                case byte b:
                     valueType = ScanValueType.valTypeUInt8;
+                    valueBuffer = BitConverter.GetBytes(b);
                     typeLength = 1;
-                    valueBuffer = BitConverter.GetBytes((Byte)(object)value);
                     if (extraValue != null)
-                        extraValueBuffer = BitConverter.GetBytes((Byte)(object)extraValue);
+                        extraValueBuffer = BitConverter.GetBytes((byte)(object)extraValue);
                     break;
-                case TypeCode.Int16:
+                case short s:
                     valueType = ScanValueType.valTypeInt16;
+                    valueBuffer = BitConverter.GetBytes(s);
                     typeLength = 2;
-                    valueBuffer = BitConverter.GetBytes((Int16)(object)value);
                     if (extraValue != null)
-                        extraValueBuffer = BitConverter.GetBytes((Int16)(object)extraValue);
+                        extraValueBuffer = BitConverter.GetBytes((short)(object)extraValue);
                     break;
-                case TypeCode.UInt16:
+                case ushort us:
                     valueType = ScanValueType.valTypeUInt16;
+                    valueBuffer = BitConverter.GetBytes(us);
                     typeLength = 2;
-                    valueBuffer = BitConverter.GetBytes((UInt16)(object)value);
                     if (extraValue != null)
-                        extraValueBuffer = BitConverter.GetBytes((UInt16)(object)extraValue);
+                        extraValueBuffer = BitConverter.GetBytes((ushort)(object)extraValue);
                     break;
-                case TypeCode.Int32:
+                case int i:
                     valueType = ScanValueType.valTypeInt32;
+                    valueBuffer = BitConverter.GetBytes(i);
                     typeLength = 4;
-                    valueBuffer = BitConverter.GetBytes((Int32)(object)value);
                     if (extraValue != null)
-                        extraValueBuffer = BitConverter.GetBytes((Int32)(object)extraValue);
+                        extraValueBuffer = BitConverter.GetBytes((int)(object)extraValue);
                     break;
-                case TypeCode.UInt32:
+                case uint ui:
                     valueType = ScanValueType.valTypeUInt32;
+                    valueBuffer = BitConverter.GetBytes(ui);
                     typeLength = 4;
-                    valueBuffer = BitConverter.GetBytes((UInt32)(object)value);
                     if (extraValue != null)
-                        extraValueBuffer = BitConverter.GetBytes((UInt32)(object)extraValue);
+                        extraValueBuffer = BitConverter.GetBytes((uint)(object)extraValue);
                     break;
-                case TypeCode.Int64:
+                case long l:
                     valueType = ScanValueType.valTypeInt64;
+                    valueBuffer = BitConverter.GetBytes(l);
                     typeLength = 8;
-                    valueBuffer = BitConverter.GetBytes((Int64)(object)value);
                     if (extraValue != null)
-                        extraValueBuffer = BitConverter.GetBytes((Int64)(object)extraValue);
+                        extraValueBuffer = BitConverter.GetBytes((long)(object)extraValue);
                     break;
-                case TypeCode.UInt64:
+                case ulong ul:
                     valueType = ScanValueType.valTypeUInt64;
+                    valueBuffer = BitConverter.GetBytes(ul);
                     typeLength = 8;
-                    valueBuffer = BitConverter.GetBytes((UInt64)(object)value);
                     if (extraValue != null)
-                        extraValueBuffer = BitConverter.GetBytes((UInt64)(object)extraValue);
+                        extraValueBuffer = BitConverter.GetBytes((ulong)(object)extraValue);
                     break;
-                case TypeCode.Single:
+                case float f:
                     valueType = ScanValueType.valTypeFloat;
+                    valueBuffer = BitConverter.GetBytes(f);
                     typeLength = 4;
-                    valueBuffer = BitConverter.GetBytes((Single)(object)value);
                     if (extraValue != null)
-                        extraValueBuffer = BitConverter.GetBytes((Single)(object)extraValue);
+                        extraValueBuffer = BitConverter.GetBytes((float)(object)extraValue);
                     break;
-                case TypeCode.Double:
+                case double d:
                     valueType = ScanValueType.valTypeDouble;
+                    valueBuffer = BitConverter.GetBytes(d);
                     typeLength = 8;
-                    valueBuffer = BitConverter.GetBytes((Double)(object)value);
                     if (extraValue != null)
-                        extraValueBuffer = BitConverter.GetBytes((Double)(object)extraValue);
+                        extraValueBuffer = BitConverter.GetBytes((double)(object)extraValue);
                     break;
-                case TypeCode.String:
+                case string s:
                     valueType = ScanValueType.valTypeString;
-                    valueBuffer = Encoding.ASCII.GetBytes((String)(object)value);
+                    valueBuffer = Encoding.ASCII.GetBytes(s);
+                    typeLength = valueBuffer.Length;
+                    break;
+                case byte[] ba:
+                    valueType = ScanValueType.valTypeArrBytes;
+                    valueBuffer = ba;
                     typeLength = valueBuffer.Length;
                     break;
                 default:
-                    if (typeof(T) == typeof(Byte[]))
-                    {
-                        valueType = ScanValueType.valTypeArrBytes;
-                        valueBuffer = (Byte[])(object)value;
-                        typeLength = valueBuffer.Length;
-                    }
-                    else
-                    {
-                        throw new NotSupportedException("Requested scan value type is not supported! (Feed in Byte[] instead.)");
-                    }
-                    break;
+                    throw new NotSupportedException("Requested scan value type is not supported! (Feed in Byte[] instead.)");
+                    
             }
-
             // send packet
             SendCMDPacket(CMDS.CMD_PROC_SCAN, CMD_PROC_SCAN_PACKET_SIZE, pid, (byte)valueType, (byte)compareType, (int)(extraValue == null ? typeLength : typeLength * 2));
             CheckStatus();
@@ -480,11 +475,11 @@ namespace libdebug
         /// <param name="length">Length</param>
         /// <param name="newprot">New protection</param>
         /// <returns></returns>
-        public void ChangeProtection(int pid, ulong address, uint length, VM_PROTECTIONS newprot)
+        public void ChangeProtection(int pid, ulong address, uint length, VM_PROTECTIONS newProt)
         {
             CheckConnected();
 
-            SendCMDPacket(CMDS.CMD_PROC_PROTECT, CMD_PROC_PROTECT_PACKET_SIZE, pid, address, length, (uint)newprot);
+            SendCMDPacket(CMDS.CMD_PROC_PROTECT, CMD_PROC_PROTECT_PACKET_SIZE, pid, address, length, (uint)newProt);
             CheckStatus();
         }
 
