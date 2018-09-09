@@ -1,6 +1,7 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Threading;
 
 namespace libdebug
@@ -26,6 +27,17 @@ namespace libdebug
         private const int DEBUG_FPREGS_SIZE = 0x340;
         private const int DEBUG_DBGREGS_SIZE = 0x80;
 
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        public struct DebuggerInterruptPacket
+        {
+            public uint lwpid;
+            public uint status;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 40)]
+            public string tdname;
+            public regs reg64;
+            public fpregs savefpu;
+            public dbregs dbreg64;
+        }
 
         public delegate void DebuggerInterruptCallback(uint lwpid, uint status, string tdname, regs regs, fpregs fpregs, dbregs dbregs);
         private void DebuggerThread(object obj)
@@ -55,20 +67,8 @@ namespace libdebug
                     int bytes = cl.Receive(data, DEBUG_INTERRUPT_SIZE, SocketFlags.None);
                     if (bytes == DEBUG_INTERRUPT_SIZE)
                     {
-                        // TODO: maybe clean this up with a packet 1:1 with structure?
-                        uint lwpid = BitConverter.ToUInt32(data, 0);
-                        uint status = BitConverter.ToUInt32(data, 4);
-                        string tdname = ConvertASCII(data, 8);
-
-                        byte[] regsdata = SubArray(data, 0x30, DEBUG_REGS_SIZE);
-                        byte[] fpregsdata = SubArray(data, 0x30 + DEBUG_REGS_SIZE, DEBUG_FPREGS_SIZE);
-                        byte[] dbregsdata = SubArray(data, 0x30 + DEBUG_REGS_SIZE + DEBUG_FPREGS_SIZE, DEBUG_DBGREGS_SIZE);
-
-                        regs a = (regs)GetObjectFromBytes(regsdata, typeof(regs));
-                        fpregs b = (fpregs)GetObjectFromBytes(fpregsdata, typeof(fpregs));
-                        dbregs c = (dbregs)GetObjectFromBytes(dbregsdata, typeof(dbregs));
-
-                        callback(lwpid, status, tdname, a, b, c);
+                        DebuggerInterruptPacket packet = (DebuggerInterruptPacket)GetObjectFromBytes(data, typeof(DebuggerInterruptPacket));
+                        callback(packet.lwpid, packet.status, packet.tdname, packet.reg64, packet.savefpu, packet.dbreg64);
                     }
                 }
 
@@ -177,6 +177,8 @@ namespace libdebug
             CheckConnected();
             CheckDebugging();
 
+            ProcessStop();
+
             if (index >= MAX_BREAKPOINTS)
             {
                 throw new Exception("libdbg: breakpoint index out of range");
@@ -184,6 +186,8 @@ namespace libdebug
 
             SendCMDPacket(CMDS.CMD_DEBUG_BREAKPT, CMD_DEBUG_BREAKPT_PACKET_SIZE, index, enabled, address);
             CheckStatus();
+
+            ProcessResume();
         }
 
         /// <summary>
@@ -200,6 +204,8 @@ namespace libdebug
             CheckConnected();
             CheckDebugging();
 
+            ProcessStop();
+
             if (index >= MAX_WATCHPOINTS)
             {
                 throw new Exception("libdbg: watchpoint index out of range");
@@ -207,6 +213,8 @@ namespace libdebug
 
             SendCMDPacket(CMDS.CMD_DEBUG_WATCHPT, CMD_DEBUG_WATCHPT_PACKET_SIZE, index, enabled, (uint)length, (uint)breaktype, address);
             CheckStatus();
+
+            ProcessResume();
         }
 
         /// <summary>

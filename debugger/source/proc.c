@@ -628,25 +628,13 @@ bool proc_scan_compareValues(cmd_proc_scan_comparetype cmpType, cmd_proc_scan_va
     return false;
 }
 
-typedef struct ResultNode {
-    struct ResultNode* next;
-    uint64_t address;
-} ResultNode;
-
-void resultlist_add(ResultNode** head, uint64_t address) {
-    ResultNode* node = (ResultNode *)pfmalloc(sizeof(ResultNode));
-     node->address = address;
-     if (!(*head)) {
-         node->next = NULL;
-         *head = node;
-     } else {
-         node->next = *head;
-         *head = node;
-     }
-}
-
 int proc_scan_handle(int fd, struct cmd_packet *packet) {
-    cmd_proc_scan_packet *sp = (cmd_proc_scan_packet *)packet->data;
+    struct cmd_proc_scan_packet *sp = (struct cmd_proc_scan_packet *)packet->data;
+
+    if(!sp) {
+        net_send_status(fd, CMD_DATA_NULL);
+       return 1;
+    }
 
     // get and set data
     size_t valueLength = proc_scan_getSizeOfValueType(sp->valueType);
@@ -660,10 +648,13 @@ int proc_scan_handle(int fd, struct cmd_packet *packet) {
        return 1;
     }
     
+    net_send_status(fd, CMD_SUCCESS);
+
     net_recv_data(fd, data, sp->lenData, 1);
 
     // query for the process id
-    struct sys_proc_vm_map_args args = {0};
+    struct sys_proc_vm_map_args args;
+    memset(&args, NULL, sizeof(struct sys_proc_vm_map_args));
     if (sys_proc_cmd(sp->pid, SYS_PROC_VM_MAP, &args)) {
         free(data);
         net_send_status(fd, CMD_ERROR);
@@ -686,11 +677,12 @@ int proc_scan_handle(int fd, struct cmd_packet *packet) {
     }
 
     net_send_status(fd, CMD_SUCCESS);
- 
-    ResultNode* list = NULL;
-    size_t listItemCount = 0;
+
+    uprintf("scan start");
+
     unsigned char *pExtraValue = valueLength == sp->lenData ? NULL : &data[valueLength];
-    for (size_t i = 0; i < args.num - 1; i++) {
+    unsigned char *scanBuffer = (unsigned char *)pfmalloc(PAGE_SIZE);
+    for (size_t i = 0; i < args.num; i++) {
        if ((args.maps[i].prot & PROT_READ) != PROT_READ) {
             continue;
        }
@@ -698,35 +690,28 @@ int proc_scan_handle(int fd, struct cmd_packet *packet) {
        uint64_t sectionStartAddr = args.maps[i].start;
        size_t sectionLen = args.maps[i].end - sectionStartAddr;
 
-       // read
-       unsigned char *scanBuffer = (unsigned char *)pfmalloc(sectionLen); // cast to uchar so we can byte shift
-       sys_proc_rw(sp->pid, sectionStartAddr, scanBuffer, sectionLen, 0);
-
        // scan
-       for (uint64_t i = 0; i < sectionLen; i += valueLength) {
-          uint64_t curAddress = sectionStartAddr + i;
-          if (proc_scan_compareValues(sp->compareType, sp->valueType, valueLength, data, scanBuffer + i, pExtraValue)) {
-             resultlist_add(&list, curAddress);
-             listItemCount++;
-          }
+       for (uint64_t j = 0; j < sectionLen; j += valueLength) {
+            if(j == 0 || !(j % PAGE_SIZE)) {
+                sys_proc_rw(sp->pid, sectionStartAddr, scanBuffer, PAGE_SIZE, 0);
+            }
+
+            uint64_t scanOffset = j % PAGE_SIZE;
+            uint64_t curAddress = sectionStartAddr + j;
+            if (proc_scan_compareValues(sp->compareType, sp->valueType, valueLength, data, scanBuffer + scanOffset, pExtraValue)) {
+                net_send_data(fd, &curAddress, sizeof(uint64_t));
+            }
        }
-       free(scanBuffer);
     }
 
+    uprintf("scan done");
+
+    uint64_t endflag = 0xFFFFFFFFFFFFFFFF;
+    net_send_data(fd, &endflag, sizeof(uint64_t));
+
+    free(scanBuffer);
     free(args.maps);
     free(data);
-
-    // sent data size
-    uint32_t resultSize = listItemCount * sizeof(uint64_t);
-    net_send_data(fd, &resultSize, sizeof(uint32_t));
-
-    // send data
-    while (list) {
-       net_send_data(fd, &list->address, sizeof(uint64_t));
-       ResultNode *_list = list;
-       list = list->next;
-       free(_list);
-    }
 
     return 0;
 }

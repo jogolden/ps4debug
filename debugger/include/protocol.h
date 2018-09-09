@@ -168,12 +168,12 @@ typedef enum cmd_proc_scan_comparetype {
    cmpTypeUnknownInitialValue
 } __attribute__((__packed__)) cmd_proc_scan_comparetype;
 
-typedef struct cmd_proc_scan_packet {
+struct cmd_proc_scan_packet {
    uint32_t pid;
-   cmd_proc_scan_valuetype valueType;
-   cmd_proc_scan_comparetype compareType;
+   uint8_t valueType;
+   uint8_t compareType;
    uint32_t lenData;
-} __attribute__((packed)) cmd_proc_scan_packet;
+} __attribute__((packed));
 #define CMD_PROC_SCAN_PACKET_SIZE 10
 
 struct cmd_proc_info_packet {
