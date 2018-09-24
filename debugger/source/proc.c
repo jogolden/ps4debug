@@ -38,7 +38,7 @@ int proc_read_handle(int fd, struct cmd_packet *packet) {
     struct cmd_proc_read_packet *rp;
     void *data;
     uint64_t left;
-    uint64_t offset;
+    uint64_t address;
 
     rp = (struct cmd_proc_read_packet *)packet->data;
 
@@ -53,23 +53,23 @@ int proc_read_handle(int fd, struct cmd_packet *packet) {
         net_send_status(fd, CMD_SUCCESS);
 
         left = rp->length;
-        offset = rp->address;
+        address = rp->address;
 
         // send by chunks
         while(left > 0) {
             memset(data, NULL, NET_MAX_LENGTH);
 
             if(left > NET_MAX_LENGTH) {
-                sys_proc_rw(rp->pid, offset, data, NET_MAX_LENGTH, 0);
+                sys_proc_rw(rp->pid, address, data, NET_MAX_LENGTH, 0);
                 net_send_data(fd, data, NET_MAX_LENGTH);
 
-                offset += NET_MAX_LENGTH;
+                address += NET_MAX_LENGTH;
                 left -= NET_MAX_LENGTH;
             } else {
-                sys_proc_rw(rp->pid, offset, data, left, 0);
+                sys_proc_rw(rp->pid, address, data, left, 0);
                 net_send_data(fd, data, left);
 
-                offset += left;
+                address += left;
                 left -= left;
             }
         }
@@ -88,7 +88,7 @@ int proc_write_handle(int fd, struct cmd_packet *packet) {
     struct cmd_proc_write_packet *wp;
     void *data;
     uint64_t left;
-    uint64_t offset;
+    uint64_t address;
 
     wp = (struct cmd_proc_write_packet *)packet->data;
 
@@ -99,23 +99,25 @@ int proc_write_handle(int fd, struct cmd_packet *packet) {
             net_send_status(fd, CMD_DATA_NULL);
             return 1;
         }
-
+        
+        net_send_status(fd, CMD_SUCCESS);
+        
         left = wp->length;
-        offset = wp->address;
+        address = wp->address;
 
         // write in chunks
         while(left > 0) {
             if(left > NET_MAX_LENGTH) {
                 net_recv_data(fd, data, NET_MAX_LENGTH, 1);
-                sys_proc_rw(wp->pid, offset, data, NET_MAX_LENGTH, 1);
+                sys_proc_rw(wp->pid, address, data, NET_MAX_LENGTH, 1);
 
-                offset += NET_MAX_LENGTH;
+                address += NET_MAX_LENGTH;
                 left -= NET_MAX_LENGTH;
             } else {
                 net_recv_data(fd, data, left, 1);
-                sys_proc_rw(wp->pid, offset, data, left, 1);
+                sys_proc_rw(wp->pid, address, data, left, 1);
 
-                offset += left;
+                address += left;
                 left -= left;
             }
         }

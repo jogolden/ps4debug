@@ -122,7 +122,7 @@ int debug_watchpt_handle(int fd, struct cmd_packet *packet) {
     }
 
     if(!wp) {
-        net_send_status(fd, CMD_SUCCESS);
+        net_send_status(fd, CMD_DATA_NULL);
         return 1;
     }
 
