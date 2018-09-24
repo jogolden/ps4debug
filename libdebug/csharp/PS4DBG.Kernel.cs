@@ -51,6 +51,7 @@ namespace libdebug
             CheckConnected();
 
             SendCMDPacket(CMDS.CMD_KERN_WRITE, CMD_KERN_WRITE_PACKET_SIZE, address, data.Length);
+            CheckStatus();
             SendData(data, data.Length);
             CheckStatus();
         }

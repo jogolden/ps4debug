@@ -384,5 +384,13 @@ namespace libdebug
             SendData(GetBytesFromObject(dbregs), DEBUG_DBGREGS_SIZE);
             CheckStatus();
         }
+         public void SingleStep()
+        {
+            CheckConnected();
+            CheckDebugging();
+
+            SendCMDPacket(CMDS.CMD_DEBUG_SINGLESTEP, 0);
+            CheckStatus();
+        }
     }
 }

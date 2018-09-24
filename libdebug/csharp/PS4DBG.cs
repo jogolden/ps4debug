@@ -86,6 +86,7 @@ namespace libdebug
             CMD_DEBUG_SETDBGREGS = 0xBDBB000D,
             CMD_DEBUG_STOPGO = 0xBDBB0010,
             CMD_DEBUG_THRINFO = 0xBDBB0011,
+            CMD_DEBUG_SINGLESTEP = 0xBDBB0012,
 
             CMD_KERN_BASE = 0xBDCC0001,
             CMD_KERN_READ = 0xBDCC0002,
