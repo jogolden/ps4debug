@@ -517,6 +517,24 @@ int debug_thrinfo_handle(int fd, struct cmd_packet *packet) {
     return 0;
 }
 
+int debug_singlestep_handle(int fd, struct cmd_packet *packet) {
+    int r;
+
+    if (curdbgctx->pid == 0) {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+        r = ptrace(PT_STEP, curdbgctx->pid, NULL, 0);
+        if(r) {
+            net_send_status(fd, CMD_ERROR);
+            return 1;
+        }
+        
+        net_send_status(fd, CMD_SUCCESS);
+        
+        return 0;
+}
+
 int connect_debugger(struct debug_context *dbgctx, struct sockaddr_in *client) {
     struct sockaddr_in server;
     int r;
@@ -617,7 +635,8 @@ int debug_handle(int fd, struct cmd_packet *packet) {
             return debug_stopgo_handle(fd, packet);
         case CMD_DEBUG_THRINFO:
             return debug_thrinfo_handle(fd, packet);
-
+        case CMD_DEBUG_SINGLESTEP:
+            return debug_singlestep_handle(fd, packet);
         // TOOD: implement more commands
         // single stepping etc
         default:
