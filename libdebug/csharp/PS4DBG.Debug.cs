@@ -181,7 +181,7 @@ namespace libdebug
         /// <param name="enabled">Enabled</param>
         /// <param name="address">Address</param>
         /// <returns></returns>
-        public void ChangeBreakpoint(int index, int enabled, ulong address)
+        public void ChangeBreakpoint(int index, bool enabled, ulong address)
         {
             CheckConnected();
             CheckDebugging();
@@ -193,7 +193,7 @@ namespace libdebug
                 throw new Exception("libdbg: breakpoint index out of range");
             }
 
-            SendCMDPacket(CMDS.CMD_DEBUG_BREAKPT, CMD_DEBUG_BREAKPT_PACKET_SIZE, index, enabled, address);
+            SendCMDPacket(CMDS.CMD_DEBUG_BREAKPT, CMD_DEBUG_BREAKPT_PACKET_SIZE, index, Convert.ToInt32(enabled), address);
             CheckStatus();
 
             ProcessResume();
@@ -208,7 +208,7 @@ namespace libdebug
         /// <param name="breaktype">Break type</param>
         /// <param name="address">Address</param>
         /// <returns></returns>
-        public void ChangeWatchpoint(int index, int enabled, WATCHPT_LENGTH length, WATCHPT_BREAKTYPE breaktype, ulong address)
+        public void ChangeWatchpoint(int index, bool enabled, WATCHPT_LENGTH length, WATCHPT_BREAKTYPE breaktype, ulong address)
         {
             CheckConnected();
             CheckDebugging();
@@ -220,7 +220,7 @@ namespace libdebug
                 throw new Exception("libdbg: watchpoint index out of range");
             }
 
-            SendCMDPacket(CMDS.CMD_DEBUG_WATCHPT, CMD_DEBUG_WATCHPT_PACKET_SIZE, index, enabled, (uint)length, (uint)breaktype, address);
+            SendCMDPacket(CMDS.CMD_DEBUG_WATCHPT, CMD_DEBUG_WATCHPT_PACKET_SIZE, index, Convert.ToInt32(enabled), (uint)length, (uint)breaktype, address);
             CheckStatus();
 
             ProcessResume();
