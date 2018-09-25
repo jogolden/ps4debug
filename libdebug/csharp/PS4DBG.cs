@@ -163,7 +163,7 @@ namespace libdebug
             Buffer.BlockCopy(data, offset, bytes, 0, length);
             return bytes;
         }
-        public static object GetObjectFromBytes(byte[] buffer, Type type)
+        private static object GetObjectFromBytes(byte[] buffer, Type type)
         {
             int size = Marshal.SizeOf(type);
 
@@ -176,7 +176,7 @@ namespace libdebug
 
             return r;
         }
-        public static byte[] GetBytesFromObject(object obj)
+        private static byte[] GetBytesFromObject(object obj)
         {
             int size = Marshal.SizeOf(obj);
 
@@ -345,7 +345,7 @@ namespace libdebug
 
 
         /// <summary>
-        /// Initializes PS4RPC class
+        /// Initializes PS4DBG class
         /// </summary>
         /// <param name="addr">PlayStation 4 address</param>
         public PS4DBG(IPAddress addr)
@@ -355,7 +355,7 @@ namespace libdebug
         }
 
         /// <summary>
-        /// Initializes PS4RPC class
+        /// Initializes PS4DBG class
         /// </summary>
         /// <param name="ip">PlayStation 4 ip address</param>
         public PS4DBG(string ip)

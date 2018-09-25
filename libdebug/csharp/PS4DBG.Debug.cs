@@ -38,7 +38,15 @@ namespace libdebug
             public fpregs savefpu;
             public dbregs dbreg64;
         }
-
+        /// <summary>
+        /// Debugger interrupt callback
+        /// </summary>
+        /// <param name="lwpid">Thread identifier</param>
+        /// <param name="status">status</param>
+        /// <param name="tdname">Thread name</param>
+        /// <param name="regs">Registers</param>
+        /// <param name="fpregs">Floating point registers</param>
+        /// <param name="dbregs">Debug registers</param>
         public delegate void DebuggerInterruptCallback(uint lwpid, uint status, string tdname, regs regs, fpregs fpregs, dbregs dbregs);
         private void DebuggerThread(object obj)
         {
@@ -81,6 +89,7 @@ namespace libdebug
         /// Attach the debugger
         /// </summary>
         /// <param name="pid">Process ID</param>
+        /// <param name="callback">DebuggerInterruptCallback implementation</param>
         /// <returns></returns>
         public void AttachDebugger(int pid, DebuggerInterruptCallback callback)
         {
@@ -247,6 +256,7 @@ namespace libdebug
         /// Get thread information
         /// </summary>
         /// <returns></returns>
+        /// <param name="lwpid">Thread identifier</param>
         public ThreadInfo GetThreadInfo(uint lwpid)
         {
             CheckConnected();
@@ -339,7 +349,7 @@ namespace libdebug
         /// Set floating point thread registers
         /// </summary>
         /// <param name="lwpid">Thread id</param>
-        /// <param name="fpregs">Register data</param>
+        /// <param name="fpregs">Floating point register data</param>
         /// <returns></returns>
         public void SetFloatRegisters(uint lwpid, fpregs fpregs)
         {
@@ -372,7 +382,7 @@ namespace libdebug
         /// Set debug thread registers
         /// </summary>
         /// <param name="lwpid">Thread id</param>
-        /// <param name="dbregs">Register data</param>
+        /// <param name="dbregs">debug register data</param>
         /// <returns></returns>
         public void SetDebugRegisters(uint lwpid, dbregs dbregs)
         {
@@ -384,7 +394,11 @@ namespace libdebug
             SendData(GetBytesFromObject(dbregs), DEBUG_DBGREGS_SIZE);
             CheckStatus();
         }
-         public void SingleStep()
+
+        /// <summary>
+        /// Executes a single instruction
+        /// </summary>
+        public void SingleStep()
         {
             CheckConnected();
             CheckDebugging();
