@@ -10,18 +10,18 @@
 #include "kdbg.h"
 
 #define PACKET_VERSION          "1.2"
-#define PACKET_MAGIC			0xFFAABBCC
+#define PACKET_MAGIC            0xFFAABBCC
 
 #define CMD_VERSION             0xBD000001
 
-#define CMD_PROC_LIST	    	0xBDAA0001
-#define CMD_PROC_READ	    	0xBDAA0002
-#define CMD_PROC_WRITE	    	0xBDAA0003
-#define CMD_PROC_MAPS	    	0xBDAA0004
-#define CMD_PROC_INTALL	    	0xBDAA0005
-#define CMD_PROC_CALL	    	0xBDAA0006
+#define CMD_PROC_LIST           0xBDAA0001
+#define CMD_PROC_READ           0xBDAA0002
+#define CMD_PROC_WRITE          0xBDAA0003
+#define CMD_PROC_MAPS           0xBDAA0004
+#define CMD_PROC_INTALL         0xBDAA0005
+#define CMD_PROC_CALL           0xBDAA0006
 #define CMD_PROC_ELF            0xBDAA0007
-#define CMD_PROC_PROTECT    	0xBDAA0008
+#define CMD_PROC_PROTECT        0xBDAA0008
 #define CMD_PROC_SCAN           0xBDAA0009
 #define CMD_PROC_INFO           0xBDAA000A
 #define CMD_PROC_ALLOC          0xBDAA000B
@@ -42,29 +42,30 @@
 #define CMD_DEBUG_SETDBGREGS    0xBDBB000D
 #define CMD_DEBUG_STOPGO        0xBDBB0010
 #define CMD_DEBUG_THRINFO       0xBDBB0011
+#define CMD_DEBUG_SINGLESTEP    0xBDBB0012
 
-#define CMD_KERN_BASE	    	0xBDCC0001
+#define CMD_KERN_BASE           0xBDCC0001
 #define CMD_KERN_READ           0xBDCC0002
 #define CMD_KERN_WRITE          0xBDCC0003
 
 #define CMD_CONSOLE_REBOOT      0xBDDD0001
 #define CMD_CONSOLE_END         0xBDDD0002
-#define CMD_CONSOLE_PRINT		0xBDDD0003
-#define CMD_CONSOLE_NOTIFY		0xBDDD0004
-#define CMD_CONSOLE_INFO		0xBDDD0005
+#define CMD_CONSOLE_PRINT       0xBDDD0003
+#define CMD_CONSOLE_NOTIFY      0xBDDD0004
+#define CMD_CONSOLE_INFO        0xBDDD0005
 
 #define VALID_CMD(cmd)          (((cmd & 0xFF000000) >> 24) == 0xBD)
 #define VALID_PROC_CMD(cmd)     (((cmd & 0x00FF0000) >> 16) == 0xAA)
 #define VALID_DEBUG_CMD(cmd)    (((cmd & 0x00FF0000) >> 16) == 0xBB)
 #define VALID_KERN_CMD(cmd)     (((cmd & 0x00FF0000) >> 16) == 0xCC)
-#define VALID_CONSOLE_CMD(cmd)	(((cmd & 0x00FF0000) >> 16) == 0xDD)
+#define VALID_CONSOLE_CMD(cmd)  (((cmd & 0x00FF0000) >> 16) == 0xDD)
 
-#define CMD_SUCCESS				0x80000000
-#define CMD_ERROR	          	0xF0000001
-#define CMD_TOO_MUCH_DATA		0xF0000002
-#define CMD_DATA_NULL			0xF0000003
-#define CMD_ALREADY_DEBUG		0xF0000004
-#define CMD_INVALID_INDEX		0xF0000005
+#define CMD_SUCCESS              0x80000000
+#define CMD_ERROR                0xF0000001
+#define CMD_TOO_MUCH_DATA        0xF0000002
+#define CMD_DATA_NULL            0xF0000003
+#define CMD_ALREADY_DEBUG        0xF0000004
+#define CMD_INVALID_INDEX        0xF0000005
 
 #define CMD_FATAL_STATUS(s) ((s >> 28) == 15)
 

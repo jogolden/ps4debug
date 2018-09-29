@@ -56,6 +56,8 @@ int kern_write_handle(int fd, struct cmd_packet *packet) {
             return 1;
         }
 
+        net_send_status(fd, CMD_SUCCESS);
+        
         net_recv_data(fd, data, wp->length, 1);  
         sys_kern_rw(wp->address, data, wp->length, 1);
 

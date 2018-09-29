@@ -86,6 +86,7 @@ namespace libdebug
             CMD_DEBUG_SETDBGREGS = 0xBDBB000D,
             CMD_DEBUG_STOPGO = 0xBDBB0010,
             CMD_DEBUG_THRINFO = 0xBDBB0011,
+            CMD_DEBUG_SINGLESTEP = 0xBDBB0012,
 
             CMD_KERN_BASE = 0xBDCC0001,
             CMD_KERN_READ = 0xBDCC0002,
@@ -162,7 +163,7 @@ namespace libdebug
             Buffer.BlockCopy(data, offset, bytes, 0, length);
             return bytes;
         }
-        public static object GetObjectFromBytes(byte[] buffer, Type type)
+        private static object GetObjectFromBytes(byte[] buffer, Type type)
         {
             int size = Marshal.SizeOf(type);
 
@@ -175,7 +176,7 @@ namespace libdebug
 
             return r;
         }
-        public static byte[] GetBytesFromObject(object obj)
+        private static byte[] GetBytesFromObject(object obj)
         {
             int size = Marshal.SizeOf(obj);
 
@@ -344,7 +345,7 @@ namespace libdebug
 
 
         /// <summary>
-        /// Initializes PS4RPC class
+        /// Initializes PS4DBG class
         /// </summary>
         /// <param name="addr">PlayStation 4 address</param>
         public PS4DBG(IPAddress addr)
@@ -354,7 +355,7 @@ namespace libdebug
         }
 
         /// <summary>
-        /// Initializes PS4RPC class
+        /// Initializes PS4DBG class
         /// </summary>
         /// <param name="ip">PlayStation 4 ip address</param>
         public PS4DBG(string ip)
