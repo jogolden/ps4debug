@@ -116,8 +116,6 @@ namespace libdebug
             public uint datalen;
         }
 
-
-
         // enums
         public enum VM_PROTECTIONS : uint
         {

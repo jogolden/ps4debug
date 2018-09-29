@@ -177,8 +177,6 @@ namespace libdebug
             CheckConnected();
             CheckDebugging();
 
-            ProcessStop();
-
             if (index >= MAX_BREAKPOINTS)
             {
                 throw new Exception("libdbg: breakpoint index out of range");
@@ -186,8 +184,6 @@ namespace libdebug
 
             SendCMDPacket(CMDS.CMD_DEBUG_BREAKPT, CMD_DEBUG_BREAKPT_PACKET_SIZE, index, enabled, address);
             CheckStatus();
-
-            ProcessResume();
         }
 
         /// <summary>
@@ -204,8 +200,6 @@ namespace libdebug
             CheckConnected();
             CheckDebugging();
 
-            ProcessStop();
-
             if (index >= MAX_WATCHPOINTS)
             {
                 throw new Exception("libdbg: watchpoint index out of range");
@@ -213,8 +207,6 @@ namespace libdebug
 
             SendCMDPacket(CMDS.CMD_DEBUG_WATCHPT, CMD_DEBUG_WATCHPT_PACKET_SIZE, index, enabled, (uint)length, (uint)breaktype, address);
             CheckStatus();
-
-            ProcessResume();
         }
 
         /// <summary>
