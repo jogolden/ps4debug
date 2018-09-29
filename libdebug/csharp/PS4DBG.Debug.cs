@@ -38,7 +38,15 @@ namespace libdebug
             public fpregs savefpu;
             public dbregs dbreg64;
         }
-
+        /// <summary>
+        /// Debugger interrupt callback
+        /// </summary>
+        /// <param name="lwpid">Thread identifier</param>
+        /// <param name="status">status</param>
+        /// <param name="tdname">Thread name</param>
+        /// <param name="regs">Registers</param>
+        /// <param name="fpregs">Floating point registers</param>
+        /// <param name="dbregs">Debug registers</param>
         public delegate void DebuggerInterruptCallback(uint lwpid, uint status, string tdname, regs regs, fpregs fpregs, dbregs dbregs);
         private void DebuggerThread(object obj)
         {
@@ -81,6 +89,7 @@ namespace libdebug
         /// Attach the debugger
         /// </summary>
         /// <param name="pid">Process ID</param>
+        /// <param name="callback">DebuggerInterruptCallback implementation</param>
         /// <returns></returns>
         public void AttachDebugger(int pid, DebuggerInterruptCallback callback)
         {
@@ -172,7 +181,7 @@ namespace libdebug
         /// <param name="enabled">Enabled</param>
         /// <param name="address">Address</param>
         /// <returns></returns>
-        public void ChangeBreakpoint(int index, int enabled, ulong address)
+        public void ChangeBreakpoint(int index, bool enabled, ulong address)
         {
             CheckConnected();
             CheckDebugging();
@@ -182,7 +191,7 @@ namespace libdebug
                 throw new Exception("libdbg: breakpoint index out of range");
             }
 
-            SendCMDPacket(CMDS.CMD_DEBUG_BREAKPT, CMD_DEBUG_BREAKPT_PACKET_SIZE, index, enabled, address);
+            SendCMDPacket(CMDS.CMD_DEBUG_BREAKPT, CMD_DEBUG_BREAKPT_PACKET_SIZE, index, Convert.ToInt32(enabled), address);
             CheckStatus();
         }
 
@@ -195,7 +204,7 @@ namespace libdebug
         /// <param name="breaktype">Break type</param>
         /// <param name="address">Address</param>
         /// <returns></returns>
-        public void ChangeWatchpoint(int index, int enabled, WATCHPT_LENGTH length, WATCHPT_BREAKTYPE breaktype, ulong address)
+        public void ChangeWatchpoint(int index, bool enabled, WATCHPT_LENGTH length, WATCHPT_BREAKTYPE breaktype, ulong address)
         {
             CheckConnected();
             CheckDebugging();
@@ -205,7 +214,7 @@ namespace libdebug
                 throw new Exception("libdbg: watchpoint index out of range");
             }
 
-            SendCMDPacket(CMDS.CMD_DEBUG_WATCHPT, CMD_DEBUG_WATCHPT_PACKET_SIZE, index, enabled, (uint)length, (uint)breaktype, address);
+            SendCMDPacket(CMDS.CMD_DEBUG_WATCHPT, CMD_DEBUG_WATCHPT_PACKET_SIZE, index, Convert.ToInt32(enabled), (uint)length, (uint)breaktype, address);
             CheckStatus();
         }
 
@@ -239,6 +248,7 @@ namespace libdebug
         /// Get thread information
         /// </summary>
         /// <returns></returns>
+        /// <param name="lwpid">Thread identifier</param>
         public ThreadInfo GetThreadInfo(uint lwpid)
         {
             CheckConnected();
@@ -331,7 +341,7 @@ namespace libdebug
         /// Set floating point thread registers
         /// </summary>
         /// <param name="lwpid">Thread id</param>
-        /// <param name="fpregs">Register data</param>
+        /// <param name="fpregs">Floating point register data</param>
         /// <returns></returns>
         public void SetFloatRegisters(uint lwpid, fpregs fpregs)
         {
@@ -364,7 +374,7 @@ namespace libdebug
         /// Set debug thread registers
         /// </summary>
         /// <param name="lwpid">Thread id</param>
-        /// <param name="dbregs">Register data</param>
+        /// <param name="dbregs">debug register data</param>
         /// <returns></returns>
         public void SetDebugRegisters(uint lwpid, dbregs dbregs)
         {
@@ -374,6 +384,18 @@ namespace libdebug
             SendCMDPacket(CMDS.CMD_DEBUG_SETDBGREGS, CMD_DEBUG_SETREGS_PACKET_SIZE, lwpid, DEBUG_DBGREGS_SIZE);
             CheckStatus();
             SendData(GetBytesFromObject(dbregs), DEBUG_DBGREGS_SIZE);
+            CheckStatus();
+        }
+
+        /// <summary>
+        /// Executes a single instruction
+        /// </summary>
+        public void SingleStep()
+        {
+            CheckConnected();
+            CheckDebugging();
+
+            SendCMDPacket(CMDS.CMD_DEBUG_SINGLESTEP, 0);
             CheckStatus();
         }
     }
