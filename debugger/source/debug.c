@@ -524,7 +524,7 @@ int debug_singlestep_handle(int fd, struct cmd_packet *packet) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
-        r = ptrace(PT_STEP, curdbgctx->pid, NULL, 0);
+        r = ptrace(PT_STEP, curdbgctx->pid, (void *)1, 0);
         if(r) {
             net_send_status(fd, CMD_ERROR);
             return 1;
@@ -637,8 +637,6 @@ int debug_handle(int fd, struct cmd_packet *packet) {
             return debug_thrinfo_handle(fd, packet);
         case CMD_DEBUG_SINGLESTEP:
             return debug_singlestep_handle(fd, packet);
-        // TOOD: implement more commands
-        // single stepping etc
         default:
             return 1;
     }
