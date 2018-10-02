@@ -147,12 +147,14 @@ int sys_proc_install_handle(struct proc *p, struct sys_proc_install_args *args) 
         return 1;
     }
 
-    args->stubentryaddr = stubentryaddr;
+    args->stubentryaddr = stubaddr;
 
     return 0;
 }
 
 int sys_proc_call_handle(struct proc *p, struct sys_proc_call_args *args) {
+
+    uint64_t rpcstub = args->rpcstub;
     // write registers
     // these two structures are basically 1:1 (it is hackey but meh)
     uint64_t regsize = offsetof(struct rpcstub_header, rpc_rax) - offsetof(struct rpcstub_header, rpc_rip);
@@ -185,6 +187,8 @@ int sys_proc_call_handle(struct proc *p, struct sys_proc_call_args *args) {
     if (proc_read_mem(p, (void *)(rpcstub + offsetof(struct rpcstub_header, rpc_rax)), sizeof(rax), &rax, NULL)) {
         return 1;
     }
+
+    args->rax = rax;
 
     return 0;
 }
