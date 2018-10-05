@@ -18,6 +18,10 @@ namespace libdebug
             this.name = name;
             this.pid = pid;
         }
+        public override string ToString()
+        {
+            return $"[{pid}] {name}";
+        }
     }
 
     public class ProcessList
