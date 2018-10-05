@@ -147,7 +147,7 @@ int sys_proc_install_handle(struct proc *p, struct sys_proc_install_args *args) 
         return 1;
     }
 
-    args->stubentryaddr = stubaddr;
+    args->stubentryaddr = (uint64_t)stubaddr;
 
     return 0;
 }
