@@ -2,31 +2,23 @@
 
 namespace libdebug
 {
-    Process::Process(const std::string &name, int32_t pid) : name(name), pid(pid)
+    Process::Process(const std::string &name, int32_t pid) : name(name), pid(pid) 
     {
 
     }
 
     ProcessList::ProcessList(int32_t number, const std::vector<std::string> &names, const std::vector<int32_t> &pids)
     {
-		processes = std::vector<Process*>(number);
+		
+		processes = std::vector<std::shared_ptr<Process>>(number);
         for(int32_t i = 0; i < number; i++)
         {
-            processes[i] =  new Process(names[i], pids[i]);
+			processes[i] = std::make_shared<Process>(names[i], pids[i]);
         }
         
     }
     
-    ProcessList::~ProcessList()
-    {
-        for(auto process : processes)
-        {
-            delete process;
-        }
-    }
-    
-
-    Process* ProcessList::FindProcess(const std::string &name, bool contains)
+	std::shared_ptr<Process> ProcessList::FindProcess(const std::string &name, bool contains)
     {
         for(auto process : processes)
         {
@@ -44,20 +36,12 @@ namespace libdebug
         return nullptr;
     }
 
-	ProcessMap::ProcessMap(int32_t pid, const std::vector<MemoryEntry*> &entries) : pid(pid), entries(entries)
+	ProcessMap::ProcessMap(int32_t pid, std::vector<std::shared_ptr<MemoryEntry>> entries) : pid(pid), entries(std::move(entries))
     {
 
     }
 
-	ProcessMap::~ProcessMap()
-    {
-		for(auto entry : entries)
-		{
-			delete entry;
-		}
-    }
-
-	MemoryEntry* ProcessMap::FindEntry(const std::string &name, bool contains)
+	std::shared_ptr<MemoryEntry> ProcessMap::FindEntry(const std::string &name, bool contains)
     {
         for(auto entry : entries)
         {
@@ -75,7 +59,7 @@ namespace libdebug
         return nullptr;
     }
 
-    MemoryEntry* ProcessMap::FindEntry(uint64_t size)
+	std::shared_ptr<MemoryEntry> ProcessMap::FindEntry(uint64_t size)
     {
         for(auto entry : entries)
         {

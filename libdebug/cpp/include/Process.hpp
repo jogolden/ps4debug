@@ -3,10 +3,11 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <memory>
 
 namespace libdebug
 {
-	class Process
+	class Process : public std::enable_shared_from_this<Process>
 	{
 	public:
 		const std::string name;
@@ -14,14 +15,14 @@ namespace libdebug
 		
 		Process(const std::string &name, int32_t pid);
 	};
-	class ProcessList
+	
+	class ProcessList : public std::enable_shared_from_this<ProcessList>
 	{
 	public:
-		std::vector<Process*> processes;
+		std::vector<std::shared_ptr<Process>> processes;
 	
 		ProcessList(int32_t number, const std::vector<std::string> &names, const std::vector<int32_t> &pids);
-		~ProcessList();
-		Process* FindProcess(const std::string &name, bool contains = false);	
+		std::shared_ptr<Process> FindProcess(const std::string &name, bool contains = false);
 	};
 	
 	struct MemoryEntry
@@ -38,16 +39,17 @@ namespace libdebug
 	{
 	public:
 		const int32_t pid;
-		const std::vector<MemoryEntry*> entries;
+		const std::vector<std::shared_ptr<MemoryEntry>> entries;
 		
-		ProcessMap(int32_t pid, const std::vector<MemoryEntry*> &entries);
-		~ProcessMap();
-		MemoryEntry* FindEntry(const std::string &name, bool contains = false);
-		MemoryEntry* FindEntry(uint64_t size);
+		ProcessMap(int32_t pid, std::vector<std::shared_ptr<MemoryEntry>> entries);
+		
+		std::shared_ptr<MemoryEntry> FindEntry(const std::string &name, bool contains = false);
+		std::shared_ptr<MemoryEntry> FindEntry(uint64_t size);
 	};
 	
 	struct ProcessInfo
 	{
+		int32_t pid;
 		uint8_t name[40];
 		uint8_t path[64];
 		uint8_t titleid[16];
