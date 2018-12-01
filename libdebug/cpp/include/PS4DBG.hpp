@@ -5,12 +5,18 @@
 
 #include <functional>
 #include <string>
+#include <iostream>
+#include <memory>
+
 #include <vector>
 #include <any>
 #include <cstring>
 #include <fstream>
 #include <thread>
 
+using std::string_literals::operator""s;
+
+using DebuggerInterruptCallback = std::function<void(uint32_t lwpid, uint32_t status, const std::string& tdname, libdebug::regs regs, libdebug::fpregs fpregs, libdebug::dbregs dbregs)>;
 namespace libdebug
 {
 	class PS4DBG
@@ -194,6 +200,8 @@ namespace libdebug
 		void CheckDebugging();
 		void SendData(const std::vector<uint8_t> &data, int32_t length);
 		std::vector<uint8_t> ReceiveData(int32_t length);
+
+		
 	public:
 		PS4DBG(const std::string &ip);
 		~PS4DBG();
@@ -227,8 +235,6 @@ namespace libdebug
 		void Print(const std::string &str);
 		void Notify(int32_t messageType, const std::string &message);
 		//debug
-		using DebuggerInterruptCallback = std::function<void(uint32_t lwpid, uint32_t status, const std::string &tdname, regs regs, fpregs fpregs, dbregs dbregs)>;
-		void DebuggerThread(DebuggerInterruptCallback obj);
 		void AttachDebugger(int32_t pid, DebuggerInterruptCallback callback);
 		void DetachDebugger();
 		void ProcessStop();
@@ -248,5 +254,8 @@ namespace libdebug
 		dbregs GetDebugRegisters(uint32_t lwpid);
 		void SetDebugRegisters(uint32_t lwpid, dbregs dbregs);
 		void SingleStep();
+	private:
+		void DebuggerThread(DebuggerInterruptCallback obj);
 	};
 }
+

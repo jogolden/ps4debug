@@ -23,6 +23,14 @@ namespace libdebug
 
 	void PS4DBG::Connect()
 	{
+		int32_t i = 1;
+		setsockopt(sock, IPPROTO_TCP, 0x01 /*TCP_NODELAY*/, (char *)&i, sizeof(i));
+		i = 10 * 1000;
+		setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char*)&i, sizeof(i));
+
+		i = NET_MAX_LENGTH;
+		setsockopt(sock, SOL_SOCKET, SO_SNDBUF, (char*)&i, sizeof(i));
+		setsockopt(sock, SOL_SOCKET, SO_RCVBUF, (char*)&i, sizeof(i));
 		connect(sock, (sockaddr*)&server, sizeof(server));
 		connected = true;
 	}
@@ -38,7 +46,7 @@ namespace libdebug
 	{
 		if(!connected)
 		{
-			// Exception
+			throw ("libdbg: not connected");
 			
 		}
 	}
@@ -46,7 +54,7 @@ namespace libdebug
 	{
 		if(!debugging)
 		{
-			// Exception
+			throw ("libdbg: not debugging");
 		}
 	}
 
@@ -146,7 +154,7 @@ namespace libdebug
 	PS4DBG::CMD_STATUS  PS4DBG::ReceiveStatus()
 	{
 		CMD_STATUS status;
-		recv(sock, (char*)&status, 4, 0);
+		int32_t rcv = recv(sock, (char*)&status, 4, 0);
 		return status;
 	}
 
@@ -155,7 +163,7 @@ namespace libdebug
 		const CMD_STATUS status = ReceiveStatus();
 		if (status != CMD_STATUS::CMD_SUCCESS)
 		{
-			// Exception
+
 		}
 		return status;
 	}
@@ -193,8 +201,8 @@ namespace libdebug
 			if (left > NET_MAX_LENGTH)
 			{
 				int32_t rcv = recv(sock, (char*)&data[offset], NET_MAX_LENGTH, 0);
-				offset += NET_MAX_LENGTH;
-				left -= NET_MAX_LENGTH;
+				offset += rcv;
+				left -= rcv;
 			}
 			else
 			{
@@ -246,13 +254,12 @@ namespace libdebug
 		std::vector<uint8_t> data = ReceiveData(number * PROC_MAP_ENTRY_SIZE);
 
 		// parse data
-		std::vector<MemoryEntry*> entries(number);
+		std::vector<std::shared_ptr<MemoryEntry>> entries(number);
 		for (int32_t i = 0; i < number; i++)
 		{
 			int32_t offset = i * PROC_MAP_ENTRY_SIZE;
-			entries[i] = new MemoryEntry();
-
-			entries[i]->name = std::string((char*)&data[offset], 32);
+			entries[i] = std::make_shared<MemoryEntry>();
+			entries[i]->name = std::string((char*)&data[offset]);
 			entries[i]->start = *(uint64_t*)(&data[offset + 32]);
 			entries[i]->end = *(uint64_t*)(&data[offset + 40]);
 			entries[i]->offset = *(uint64_t*)(&data[offset + 48]);
@@ -391,7 +398,7 @@ namespace libdebug
 		}
 	}
 
-	void PS4DBG::ChangeProtection(int pid, uint64_t address, uint32_t length, VM_PROTECTIONS newProt)
+	void PS4DBG::ChangeProtection(int32_t pid, uint64_t address, uint32_t length, VM_PROTECTIONS newProt)
 	{
 		CheckConnected();
 
@@ -399,7 +406,7 @@ namespace libdebug
 		CheckStatus();
 	}
 	
-	ProcessInfo PS4DBG::GetProcessInfo(int pid)
+	ProcessInfo PS4DBG::GetProcessInfo(int32_t pid)
 	{
 		CheckConnected();
 		SendCMDPacket(CMDS::CMD_PROC_INFO, CMD_PROC_INFO_PACKET_SIZE, { pid });
@@ -410,7 +417,7 @@ namespace libdebug
 		return data;
 	}
 
-	uint64_t PS4DBG::AllocateMemory(int pid, int length)
+	uint64_t PS4DBG::AllocateMemory(int32_t pid, int32_t length)
 	{
 		CheckConnected();
 
@@ -421,7 +428,7 @@ namespace libdebug
 		return data;
 	}
 
-	void PS4DBG::FreeMemory(int pid, uint64_t address, int length)
+	void PS4DBG::FreeMemory(int32_t pid, uint64_t address, int32_t length)
 	{
 		CheckConnected();
 		SendCMDPacket(CMDS::CMD_PROC_FREE, CMD_PROC_FREE_PACKET_SIZE, { pid, address, length });
@@ -506,21 +513,24 @@ namespace libdebug
 		serv.sin_family = AF_INET;
 		serv.sin_port = htons(PS4DBG_DEBUG_PORT);
 		Socket	debugServer = socket(AF_INET, SOCK_STREAM, 0);
-		int32_t ret = bind(debugServer, (sockaddr*)&serv, sizeof(serv));
-		int32_t ret2 = listen(debugServer, 0);
+		bind(debugServer, (sockaddr*)&serv, sizeof(serv));
+		listen(debugServer, 0);
 		debugging = true;
 		int32_t size = sizeof(client);
 		Socket cl = accept(debugServer, (sockaddr*)&client, (socklen_t*)&size);
+		int32_t i = 1;
+		setsockopt(cl, IPPROTO_TCP, 0x01 /*TCP_NODELAY*/, (char *)&i, sizeof(i));
+		u_long iMode = 0;
+		SocketAvailable(cl, FIONBIO, &iMode);
 		while(IsDebugging())
 		{
-			uint64_t temp = 0;
-			int32_t count = 0;
+			uint64_t count = 0;
 #if defined(PLATFORM_WINDOWS)
-			SocketAvailable(cl, FIONREAD, (u_long *)&temp);
+			SocketAvailable(cl, FIONREAD, (u_long *)&count);
 #elif defined(PLATFORM_LINUX) || defined(PLATFORM_APPLE)
-			ioctl(sock, FIONREAD, &temp);
+			ioctl(sock, FIONREAD, &count);
 #endif
-			count = (int32_t)temp;
+
 			if (count == DEBUG_INTERRUPT_SIZE)
 			{
 				std::vector <uint8_t> data(DEBUG_INTERRUPT_SIZE);
@@ -541,7 +551,7 @@ namespace libdebug
 		
 		if (debugging || debugThread.joinable())
 		{
-			throw std::runtime_error("libdbg: debugger already running?");
+			throw ("libdbg: debugger already running?");
 		}
 
 		debugging  = false;
@@ -602,7 +612,7 @@ namespace libdebug
 
 		if (index >= MAX_BREAKPOINTS)
 		{
-			// Exception
+			throw ("libdbg: breakpoint index out of range");
 		}
 
 		SendCMDPacket(CMDS::CMD_DEBUG_BREAKPT, CMD_DEBUG_BREAKPT_PACKET_SIZE, { index, (int32_t)enabled, address });
@@ -615,7 +625,7 @@ namespace libdebug
 
 		if (index >= MAX_WATCHPOINTS)
 		{
-			// Exception
+			throw ("libdbg: watchpoint index out of range");
 		}
 
 		SendCMDPacket(CMDS::CMD_DEBUG_WATCHPT, CMD_DEBUG_WATCHPT_PACKET_SIZE, { index, (int32_t)enabled, (uint32_t)length, (uint32_t)breaktype, address });
@@ -630,10 +640,13 @@ namespace libdebug
 		SendCMDPacket(CMDS::CMD_DEBUG_THREADS, 0);
 		CheckStatus();
 
-		int number;
+		int32_t number;
+		int32_t number2;
 		recv(sock,(char*)&number, sizeof(int32_t), 0);
-		std::vector<uint8_t> temp = ReceiveData(number * sizeof(uint32_t));
-		std::vector<uint32_t> data(number);
+		recv(sock, (char*)&number2, sizeof(int32_t), 0);
+
+		std::vector<uint8_t> temp = ReceiveData(number2 * sizeof(uint32_t));
+		std::vector<uint32_t> data(number2);
 		std::memcpy(data.data(), temp.data(), temp.size());
 		return data;
 	}
