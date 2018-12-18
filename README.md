@@ -2,7 +2,7 @@
 This is a debugger for the PlayStation 4. Yes thats right! Look around and you will find some very useful tools online or on the PS4 Source Discord channel. Anything is possible, except kernel mode debugging, which I decided to leave out.
 
 ### Quickstart Guide
-Before you do anything, haha, I would recommend joining the PS4 Source Discord: [https://discord.gg/WXgmWFh](https://discord.gg/WXgmWFh). There are tons of members willing to help anyone, and we even have a specific channel for debugger help. I am going to try to give you a little rundown on how to use ps4debug....
+I am going to try to give you a little rundown on how to use ps4debug....
 1. Download Debug Watch or another debugging tool, checkout the discord for downloads
 2. Load the latest version of `ps4debug.bin` on the console (on the release page)
 3. I recommend just loading ps4debug and your choice of HEN
