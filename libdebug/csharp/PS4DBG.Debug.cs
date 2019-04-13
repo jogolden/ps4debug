@@ -102,7 +102,7 @@ namespace libdebug
 
             IsDebugging = false;
 
-            debugThread = new Thread(DebuggerThread);
+            debugThread = new Thread(DebuggerThread) {IsBackground = true};
             debugThread.Start(callback);
 
             // wait until server is started
