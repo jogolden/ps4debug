@@ -524,15 +524,16 @@ int debug_singlestep_handle(int fd, struct cmd_packet *packet) {
         net_send_status(fd, CMD_ERROR);
         return 1;
     }
-        r = ptrace(PT_STEP, curdbgctx->pid, (void *)1, 0);
-        if(r) {
-            net_send_status(fd, CMD_ERROR);
-            return 1;
-        }
-        
-        net_send_status(fd, CMD_SUCCESS);
-        
-        return 0;
+
+    r = ptrace(PT_STEP, curdbgctx->pid, (void *)1, 0);
+    if(r) {
+        net_send_status(fd, CMD_ERROR);
+        return 1;
+    }
+    
+    net_send_status(fd, CMD_SUCCESS);
+    
+    return 0;
 }
 
 int connect_debugger(struct debug_context *dbgctx, struct sockaddr_in *client) {
