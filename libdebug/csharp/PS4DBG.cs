@@ -145,7 +145,7 @@ namespace libdebug
         };
 
         // General helper functions, make code cleaner
-        private static string ConvertASCII(byte[] data, int offset)
+        public static string ConvertASCII(byte[] data, int offset)
         {
             int length = Array.IndexOf<byte>(data, 0, offset) - offset;
             if (length < 0)
@@ -155,13 +155,13 @@ namespace libdebug
 
             return Encoding.ASCII.GetString(data, offset, length);
         }
-        private static byte[] SubArray(byte[] data, int offset, int length)
+        public static byte[] SubArray(byte[] data, int offset, int length)
         {
             byte[] bytes = new byte[length];
             Buffer.BlockCopy(data, offset, bytes, 0, length);
             return bytes;
         }
-        private static object GetObjectFromBytes(byte[] buffer, Type type)
+        public static object GetObjectFromBytes(byte[] buffer, Type type)
         {
             int size = Marshal.SizeOf(type);
 
@@ -174,7 +174,7 @@ namespace libdebug
 
             return r;
         }
-        private static byte[] GetBytesFromObject(object obj)
+        public static byte[] GetBytesFromObject(object obj)
         {
             int size = Marshal.SizeOf(obj);
 
