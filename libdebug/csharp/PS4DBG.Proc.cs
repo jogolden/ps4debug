@@ -96,12 +96,291 @@ namespace libdebug
             CheckStatus();
         }
 
-        /// <summary>
-        /// Get process memory maps
-        /// </summary>
-        /// <param name="pid">Process ID</param>
-        /// <returns></returns>
-        public ProcessMap GetProcessMaps(int pid)
+		// read wrappers
+		/// <summary>
+		/// Read Byte
+		/// </summary>
+		/// <param name="pid">Process ID</param>
+		/// <param name="address">Memory address</param>
+		public Byte ReadByte(int pid, ulong address)
+		{
+			return ReadMemory(pid, address, sizeof(Byte))[0];
+		}
+
+		/// <summary>
+		/// Read Char
+		/// </summary>
+		/// <param name="pid">Process ID</param>
+		/// <param name="address">Memory address</param>
+		public Char ReadChar(int pid, ulong address)
+		{
+			return BitConverter.ToChar(ReadMemory(pid, address, sizeof(Char)), 0);
+		}
+
+		/// <summary>
+		/// Read Int16
+		/// </summary>
+		/// <param name="pid">Process ID</param>
+		/// <param name="address">Memory address</param>
+		public Int16 ReadInt16(int pid, ulong address)
+		{
+			return BitConverter.ToInt16(ReadMemory(pid, address, sizeof(Int16)), 0);
+		}
+
+		/// <summary>
+		/// Read Unsigned Int16
+		/// </summary>
+		/// <param name="pid">Process ID</param>
+		/// <param name="address">Memory address</param>
+		public UInt16 ReadUInt16(int pid, ulong address)
+		{
+			return BitConverter.ToUInt16(ReadMemory(pid, address, sizeof(UInt16)), 0);
+		}
+
+		/// <summary>
+		/// Read Int32
+		/// </summary>
+		/// <param name="pid">Process ID</param>
+		/// <param name="address">Memory address</param>
+		public Int32 ReadInt32(int pid, ulong address)
+		{
+			return BitConverter.ToInt32(ReadMemory(pid, address, sizeof(Int32)), 0);
+		}
+
+		/// <summary>
+		/// Read Unsigned Int32
+		/// </summary>
+		/// <param name="pid">Process ID</param>
+		/// <param name="address">Memory address</param>
+		public UInt32 ReadUInt32(int pid, ulong address)
+		{
+			return BitConverter.ToUInt32(ReadMemory(pid, address, sizeof(UInt32)), 0);
+		}
+
+		/// <summary>
+		/// Read Int64
+		/// </summary>
+		/// <param name="pid">Process ID</param>
+		/// <param name="address">Memory address</param>
+		public Int64 ReadInt64(int pid, ulong address)
+		{
+			return BitConverter.ToInt64(ReadMemory(pid, address, sizeof(Int64)), 0);
+		}
+
+		/// <summary>
+		/// Read Unsigned Int64
+		/// </summary>
+		/// <param name="pid">Process ID</param>
+		/// <param name="address">Memory address</param>
+		public UInt64 ReadUInt64(int pid, ulong address)
+		{
+			return BitConverter.ToUInt64(ReadMemory(pid, address, sizeof(UInt64)), 0);
+		}
+
+		// write wrappers
+		/// <summary>
+		/// Write Byte
+		/// </summary>
+		/// <param name="pid">Process ID</param>
+		/// <param name="address">Memory address</param>
+		/// <param name="value">Byte to write</param>
+		public void WriteByte(int pid, ulong address, Byte value)
+		{
+			WriteMemory(pid, address, new byte[] { value });
+		}
+
+		/// <summary>
+		/// Write Char
+		/// </summary>
+		/// <param name="pid">Process ID</param>
+		/// <param name="address">Memory address</param>
+		/// <param name="value">Char to write</param>
+		public void WriteChar(int pid, ulong address, Char value)
+		{
+			WriteMemory(pid, address, BitConverter.GetBytes(value));
+		}
+
+		/// <summary>
+		/// Write Int16
+		/// </summary>
+		/// <param name="pid">Process ID</param>
+		/// <param name="address">Memory address</param>
+		/// <param name="value">Int16 to write</param>
+		public void WriteInt16(int pid, ulong address, Int16 value)
+		{
+			WriteMemory(pid, address, BitConverter.GetBytes(value));
+		}
+
+		/// <summary>
+		/// Write Unsigned Int16
+		/// </summary>
+		/// <param name="pid">Process ID</param>
+		/// <param name="address">Memory address</param>
+		/// <param name="value">UInt16 to write</param>
+		public void WriteUInt16(int pid, ulong address, UInt16 value)
+		{
+			WriteMemory(pid, address, BitConverter.GetBytes(value));
+		}
+
+		/// <summary>
+		/// Write Int32
+		/// </summary>
+		/// <param name="pid">Process ID</param>
+		/// <param name="address">Memory address</param>
+		/// <param name="value">Int32 to write</param>
+		public void WriteInt32(int pid, ulong address, Int32 value)
+		{
+			WriteMemory(pid, address, BitConverter.GetBytes(value));
+		}
+
+		/// <summary>
+		/// Write Unsigned Int32
+		/// </summary>
+		/// <param name="pid">Process ID</param>
+		/// <param name="address">Memory address</param>
+		/// <param name="value">UInt32 to write</param>
+		public void WriteUInt32(int pid, ulong address, UInt32 value)
+		{
+			WriteMemory(pid, address, BitConverter.GetBytes(value));
+		}
+
+		/// <summary>
+		/// Write Int64
+		/// </summary>
+		/// <param name="pid">Process ID</param>
+		/// <param name="address">Memory address</param>
+		/// <param name="value">Int64 to write</param>
+		public void WriteInt64(int pid, ulong address, Int64 value)
+		{
+			WriteMemory(pid, address, BitConverter.GetBytes(value));
+		}
+
+		/// <summary>
+		/// Write Unsigned Int64
+		/// </summary>
+		/// <param name="pid">Process ID</param>
+		/// <param name="address">Memory address</param>
+		/// <param name="value">UInt64 to write</param>
+		public void WriteUInt64(int pid, ulong address, UInt64 value)
+		{
+			WriteMemory(pid, address, BitConverter.GetBytes(value));
+		}
+
+		// float/double
+		/// <summary>
+		/// Read Single
+		/// </summary>
+		/// <param name="pid">Process ID</param>
+		/// <param name="address">Memory address</param>
+		public float ReadSingle(int pid, ulong address)
+		{
+			return BitConverter.ToSingle(ReadMemory(pid, address, sizeof(float)), 0);
+		}
+
+		/// <summary>
+		/// Write Single
+		/// </summary>
+		/// <param name="pid">Process ID</param>
+		/// <param name="address">Memory address</param>
+		/// <param name="value">float to write</param>
+		public void WriteSingle(int pid, ulong address, float value)
+		{
+			WriteMemory(pid, address, BitConverter.GetBytes(value));
+		}
+
+		/// <summary>
+		/// Read Double
+		/// </summary>
+		/// <param name="pid">Process ID</param>
+		/// <param name="address">Memory address</param>
+		public double ReadDouble(int pid, ulong address)
+		{
+			return BitConverter.ToDouble(ReadMemory(pid, address, sizeof(double)), 0);
+		}
+
+		/// <summary>
+		/// Write Double
+		/// </summary>
+		/// <param name="pid">Process ID</param>
+		/// <param name="address">Memory address</param>
+		/// <param name="value">double to write</param>
+		public void WriteDouble(int pid, ulong address, double value)
+		{
+			WriteMemory(pid, address, BitConverter.GetBytes(value));
+		}
+
+		// string
+		/// <summary>
+		/// Read null terminated string
+		/// </summary>
+		/// <param name="pid">Process ID</param>
+		/// <param name="address">Memory address</param>
+		public string ReadString(int pid, ulong address)
+		{
+			string str = "";
+			ulong i = 0;
+
+			while (true)
+			{
+				byte value = ReadByte(pid, address + i);
+				if (value == 0)
+				{
+					break;
+				}
+
+				str += Convert.ToChar(value);
+				i++;
+			}
+
+			return str;
+		}
+
+		/// <summary>
+		/// Read string as buffer
+		/// </summary>
+		/// <param name="pid">Process ID</param>
+		/// <param name="address">Memory address</param>
+		/// <param name="lenght">Buffer length</param>
+		public string ReadString(int pid, ulong address, int lenght)
+		{
+			byte[] temp = ReadMemory(pid, address, lenght);
+			string str = "";
+			int i = 0;
+
+			while (true)
+			{
+				byte value = temp[i];
+
+				if (value == 0)
+				{
+					break;
+				}
+
+				str += Convert.ToChar(value);
+				i++;
+			}
+
+			return str;
+		}
+
+		/// <summary>
+		/// Write String
+		/// </summary>
+		/// <param name="pid">Process ID</param>
+		/// <param name="address">Memory address</param>
+		/// <param name="str">String to write</param>
+		public void WriteString(int pid, ulong address, string str)
+		{
+			WriteMemory(pid, address, Encoding.ASCII.GetBytes(str));
+			WriteByte(pid, address + (ulong)str.Length, 0);
+		}
+
+		/// <summary>
+		/// Get process memory maps
+		/// </summary>
+		/// <param name="pid">Process ID</param>
+		/// <returns></returns>
+		public ProcessMap GetProcessMaps(int pid)
         {
             CheckConnected();
 
