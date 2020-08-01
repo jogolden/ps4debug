@@ -51,8 +51,9 @@ void patch_kernel() {
     // patch ptrace, thanks 2much4u
     *(uint8_t *)(kernbase + 0x0010F879) = 0xEB;
 
+	// Need to find 6.72 offsets.
     // remove all these bullshit checks from ptrace, by golden
-    memcpy((void *)(kernbase + 0x30DE01), "\xE9\xD0\x00\x00\x00", 5);
+    //memcpy((void *)(kernbase + 0x30DE01), "\xE9\xD0\x00\x00\x00", 5);
 
     // patch ASLR, thanks 2much4u
     *(uint16_t *)(kernbase + 0x003CECE1) = 0xEB;
