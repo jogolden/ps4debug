@@ -2,7 +2,7 @@
 // 6/12/2018
 //
 
-#include "proc.h"
+#include "include/proc.h"
 
 int proc_list_handle(int fd, struct cmd_packet *packet) {
     void *data;

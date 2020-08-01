@@ -27,39 +27,39 @@ void patch_kernel() {
     uint64_t kernbase = get_kbase();
 
     // patch memcpy first
-    *(uint8_t *)(kernbase + 0x1EA53D) = 0xEB;
+    *(uint8_t *)(kernbase + 0x003C15BD) = 0xEB;
 
     // patch sceSblACMgrIsAllowedSystemLevelDebugging
-    memcpy((void *)(kernbase + 0x11730), "\x48\xC7\xC0\x01\x00\x00\x00\xC3", 8);
+    memcpy((void *)(kernbase + 0x00233BD0), "\x48\xC7\xC0\x01\x00\x00\x00\xC3", 8);
 
     // patch sceSblACMgrHasMmapSelfCapability
-    memcpy((void *)(kernbase + 0x117B0), "\x48\xC7\xC0\x01\x00\x00\x00\xC3", 8);
+    memcpy((void *)(kernbase + 0x00233C40), "\x48\xC7\xC0\x01\x00\x00\x00\xC3", 8);
 
     // patch sceSblACMgrIsAllowedToMmapSelf
-    memcpy((void *)(kernbase + 0x117C0), "\x48\xC7\xC0\x01\x00\x00\x00\xC3", 8);
+    memcpy((void *)(kernbase + 0x00233C50), "\x48\xC7\xC0\x01\x00\x00\x00\xC3", 8);
 
     // disable sysdump_perform_dump_on_fatal_trap
     // will continue execution and give more information on crash, such as rip
-    *(uint8_t *)(kernbase + 0x7673E0) = 0xC3;
+    *(uint8_t *)(kernbase + 0x00784120) = 0xC3;
 
     // self patches
-    memcpy((void *)(kernbase + 0x13F03F), "\x31\xC0\x90\x90\x90", 5);
+    memcpy((void *)(kernbase + 0x000AD2E4), "\x31\xC0\x90\x90\x90", 5);
 
     // patch vm_map_protect check
-    memcpy((void *)(kernbase + 0x1A3C08), "\x90\x90\x90\x90\x90\x90", 6);
+    memcpy((void *)(kernbase + 0x00451DB8), "\x90\x90\x90\x90\x90\x90", 6);
 
     // patch ptrace, thanks 2much4u
-    *(uint8_t *)(kernbase + 0x30D9AA) = 0xEB;
+    *(uint8_t *)(kernbase + 0x0010F879) = 0xEB;
 
     // remove all these bullshit checks from ptrace, by golden
     memcpy((void *)(kernbase + 0x30DE01), "\xE9\xD0\x00\x00\x00", 5);
 
     // patch ASLR, thanks 2much4u
-    *(uint16_t *)(kernbase + 0x194875) = 0x9090;
+    *(uint16_t *)(kernbase + 0x003CECE1) = 0xEB;
 
     // patch kmem_alloc
-    *(uint8_t *)(kernbase + 0xFCD48) = VM_PROT_ALL;
-    *(uint8_t *)(kernbase + 0xFCD56) = VM_PROT_ALL;
+    *(uint8_t *)(kernbase + 0x002507F5) = VM_PROT_ALL;
+    *(uint8_t *)(kernbase + 0x00250803) = VM_PROT_ALL;
 
     cpu_enable_wp();
 }
@@ -145,8 +145,8 @@ int load_debugger() {
 int runinstaller() {
     init_ksdk();
 
-    // enable uart
-    *disable_console_output = 0;
+    //// enable uart
+    //*disable_console_output = 0;
 
     ascii_art();
 
