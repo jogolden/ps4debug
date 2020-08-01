@@ -1,6 +1,0 @@
-[submodule "ps4-payload-sdk"]
-	path = ps4-payload-sdk
-	url = https://github.com/xvortex/ps4-payload-sdk.git
-[submodule "ps4-ksdk"]
-	path = ps4-ksdk
-	url = https://github.com/xemio/ps4-ksdk.git
