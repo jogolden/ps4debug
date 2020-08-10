@@ -147,7 +147,7 @@ int runinstaller() {
     init_ksdk();
 
     //// enable uart
-    //*disable_console_output = 0;
+    *disable_console_output = 0;
 
     ascii_art();
 

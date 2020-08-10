@@ -19,7 +19,7 @@ int _main(void) {
     sceKernelSleep(2);
 
     // just a little notify
-    sceSysUtilSendSystemNotificationWithText(222, "ps4debug by golden");
+    sceSysUtilSendSystemNotificationWithText(222, "ps4debug by golden\n 6.72 port by GiantPluto");
     
     // jailbreak current thread
     sys_console_cmd(SYS_CONSOLE_CMD_JAILBREAK, NULL);
