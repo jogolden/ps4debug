@@ -48,15 +48,12 @@ void patch_kernel() {
     // patch vm_map_protect check
     memcpy((void *)(kernbase + 0x00451DB8), "\x90\x90\x90\x90\x90\x90", 6);
 
-    // patch ptrace, thanks 2much4u
+    // patch ptrace
     *(uint8_t *)(kernbase + 0x0010F879) = 0xEB;
-
-    // remove all these bullshit checks from ptrace, by golden
-    // updated 6.72 patch ~DeathRGH 06/08/2020
     memcpy((void *)(kernbase + 0x10FD22), "\xE9\xE2\x02\x00\x00", 5);
 
-    // patch ASLR, thanks 2much4u
-    *(uint16_t *)(kernbase + 0x003CECE1) = 0xEB;
+	// disable ASLR
+    *(uint8_t *)(kernbase + 0x003CECE1) = 0xEB;
 
     // patch kmem_alloc
     *(uint8_t *)(kernbase + 0x002507F5) = VM_PROT_ALL;
