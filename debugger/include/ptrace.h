@@ -91,13 +91,6 @@
 #define SIGUSR1 30	/* user defined signal 1 */
 #define SIGUSR2 31	/* user defined signal 2 */
 
-struct ptrace_io_desc {
-    int	piod_op;        /* I/O operation */
-    void *piod_offs;	/* child offset */
-    void *piod_addr;	/* parent offset */
-    uint64_t piod_len;	/* request length */
-};
-
 TYPE_BEGIN(struct ptrace_lwpinfo, 0x98);
 TYPE_FIELD(uint32_t pl_lwpid, 0);
 TYPE_FIELD(char pl_tdname[24], 0x80);

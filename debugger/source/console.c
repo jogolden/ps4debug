@@ -78,8 +78,8 @@ int console_notify_handle(int fd, struct cmd_packet *packet) {
 }
 
 int console_info_handle(int fd, struct cmd_packet *packet) {
-    struct cmd_console_info_response resp;
-    size_t len;
+    //struct cmd_console_info_response resp;
+    //size_t len;
 
     //extern int (*sysctl)(int *name, unsigned int namelen, char *oldval, size_t *oldlen, char *newval, size_t newlen);
     //extern int (*sysctlbyname)(char *name, char *oldval, size_t *oldlen, char *newval, size_t newlen);
