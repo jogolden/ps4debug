@@ -282,7 +282,7 @@ namespace libdebug
 	{
 		CheckConnected();
 
-		SendCMDPacket(CMDS::CMD_PROC_WRITE, CMD_PROC_WRITE_PACKET_SIZE, { pid, address, data.size()});
+		SendCMDPacket(CMDS::CMD_PROC_WRITE, CMD_PROC_WRITE_PACKET_SIZE, { pid, address, (int32_t) data.size()});
 		CheckStatus();
 		SendData(data, data.size());
 		CheckStatus();
@@ -372,7 +372,7 @@ namespace libdebug
 	void PS4DBG::LoadElf(int32_t pid, const std::vector<uint8_t> &elf)
 	{
 
-		SendCMDPacket(CMDS::CMD_PROC_ELF, CMD_PROC_ELF_PACKET_SIZE, { pid, elf.size() });
+		SendCMDPacket(CMDS::CMD_PROC_ELF, CMD_PROC_ELF_PACKET_SIZE, { pid, (int32_t) elf.size() });
 		SendData(elf, elf.size());
 		CheckStatus();
 	}
@@ -461,7 +461,7 @@ namespace libdebug
 	{
 		CheckConnected();
 
-		SendCMDPacket(CMDS::CMD_KERN_WRITE, CMD_KERN_WRITE_PACKET_SIZE, { address, data.size() });
+		SendCMDPacket(CMDS::CMD_KERN_WRITE, CMD_KERN_WRITE_PACKET_SIZE, { address, (int32_t) data.size() });
 		CheckStatus();
 		SendData(data, data.size());
 		CheckStatus();
